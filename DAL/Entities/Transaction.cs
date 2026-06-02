@@ -1,0 +1,32 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using API.Domain.Enums;
+using API.Entities;
+
+namespace DAL.Entities
+{
+    public class Transaction
+    {
+        public int Id { get; set; }
+        
+        public string UserId { get; set; }
+        
+        public string? ImageUrl { get; set; }
+        
+        public decimal TotalAmount { get; set; } = 0m;
+        
+        public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
+        
+        public TransactionStatusType Status { get; set; } = TransactionStatusType.Completed;
+        
+        public bool IsAiEstimated { get; set; } = false;
+        
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation Properties
+        public virtual AppUser AppUsers { get; set; }
+        public virtual ICollection<TransactionDetail> TransactionDetails { get; set; } = new List<TransactionDetail>();
+    }
+}
