@@ -1,5 +1,8 @@
 using System.Text;
 using API.Entities;
+using API.Middlewares;
+using BLL.Interfaces.IServices;
+using BLL.Service;
 using DAL.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -12,6 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<ITokenService, TokenService>();
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -36,11 +41,12 @@ builder.Services.AddSwaggerGen(option =>
     });
 });
 
-// sql server
+// SQL server
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
 //Identity(user)
 builder.Services.AddIdentityCore<AppUser>(opt =>
 {
@@ -64,7 +70,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false // skip Audience
         };
     });
+
+builder.Services.AddCors();
+
 var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+app.UseMiddleware<ExceptionMiddleware>();
+app.UseCors(x => x
+    .WithOrigins("http://localhost:4200", "https://localhost:4200")
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .AllowCredentials() 
+);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
