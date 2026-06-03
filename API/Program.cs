@@ -1,9 +1,15 @@
 using System.Text;
-using API.Entities;
+using API.Mappings;
 using API.Middlewares;
 using BLL.Interfaces.IServices;
 using BLL.Service;
+
+// using BLL.Interfaces.IServices;
+// using BLL.Service;
 using DAL.Data;
+using DAL.Entities;
+using DAL.IRepositories;
+using DAL.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +21,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+// register AutoMapper 
+builder.Services.AddAutoMapper(cfg => 
+{
+    cfg.AddProfile<AutoMapperProfile>(); 
+});
+
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

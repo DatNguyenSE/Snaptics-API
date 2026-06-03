@@ -2,12 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using API.Entities;
-using API.Extension;
 using API.Extensions;
 using BLL.Dtos;
 using BLL.Dtos.AccountDto;
-using BLL.Interfaces.IServices;
+using BLL.Service;
+using DAL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +17,7 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class AccountController(UserManager<AppUser> userManager, ITokenService tokenService) : ControllerBase
+    public class AccountController(UserManager<AppUser> userManager, TokenService tokenService) : ControllerBase
     {
         [HttpPost("register")] 
         public async Task<IActionResult> Register(RegisterDto dto)

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using API.Entities;
 using DAL.Entities;
 using Microsoft.AspNetCore.Identity;
 // 1. THÊM THƯ VIỆN NÀY ĐỂ DÙNG IdentityDbContext

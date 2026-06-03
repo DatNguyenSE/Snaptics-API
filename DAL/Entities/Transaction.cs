@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using API.Domain.Enums;
-using API.Entities;
+using DAL.Enums;
+
 
 namespace DAL.Entities
 {

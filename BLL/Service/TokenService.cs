@@ -3,7 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using API.Entities;
+using DAL.Entities;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -56,3 +56,4 @@ public class TokenService(IConfiguration config, UserManager<AppUser> userManage
         return Convert.ToBase64String(randomBytes);
     }
 }
+

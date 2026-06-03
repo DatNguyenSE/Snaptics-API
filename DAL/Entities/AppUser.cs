@@ -1,7 +1,6 @@
-using DAL.Entities;
 using Microsoft.AspNetCore.Identity;
 
-namespace API.Entities
+namespace DAL.Entities
 {
     public class AppUser : IdentityUser 
     {

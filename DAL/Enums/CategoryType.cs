@@ -1,4 +1,4 @@
-namespace API.Domain.Enums
+namespace DAL.Enums
 {
     public enum CategoryType
     {
