@@ -5,7 +5,7 @@ namespace API.Entities
 {
     public class AppUser : IdentityUser 
     {
-        public string? FullName { get; set; }
+        public string? DisplayName { get; set; }
 
         public bool TrackCalories { get; set; } = false;
         

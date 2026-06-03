@@ -1,5 +1,11 @@
+using System.Text;
+using API.Entities;
 using DAL.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,18 +14,66 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Swagger config
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(option =>
+{
+    option.SwaggerDoc("v1", new OpenApiInfo { Title = "Snaptic API", Version = "v1" });
+
+    option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+      In = ParameterLocation.Header,
+      Description = "Please, enter the token code in the blank",
+      Name = "Authorizaion",
+      Type = SecuritySchemeType.Http,
+      BearerFormat = "JWT",
+      Scheme = "Bearer"
+    });
+    option.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
+
+// sql server
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-
+//Identity(user)
+builder.Services.AddIdentityCore<AppUser>(opt =>
+{
+    opt.Password.RequireNonAlphanumeric = false; //no (@, #, !)
+    opt.User.RequireUniqueEmail = true; //Unique Email
+})
+.AddRoles<IdentityRole>() // Activate the Role feature
+.AddEntityFrameworkStores<AppDbContext>() // store user to db via AppDbcontext
+.AddDefaultTokenProviders();
+//JWT config
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var tokenKey = builder.Configuration["TokenKey"]
+            ?? throw new Exception("Token key not found - Program.cs");
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true, // Token signature varification 
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenKey)),  //compare signature to secret-key
+            ValidateIssuer = false, // skip issuer
+            ValidateAudience = false // skip Audience
+        };
+    });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
 
 app.UseHttpsRedirection();
 

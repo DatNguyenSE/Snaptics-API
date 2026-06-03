@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603104314_InitialIdentitySetup")]
+    partial class InitialIdentitySetup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -205,7 +208,6 @@ namespace DAL.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalAmount")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("TransactionDate")
@@ -241,7 +243,6 @@ namespace DAL.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("Quantity")
@@ -289,14 +290,14 @@ namespace DAL.Data.Migrations
                         new
                         {
                             Id = "user-id",
-                            ConcurrencyStamp = "STATIC-GUID-ROLE-USER",
+                            ConcurrencyStamp = "06a4f813-c74b-4af5-b11e-ab3d4cbfa8d6",
                             Name = "User",
                             NormalizedName = "USER"
                         },
                         new
                         {
                             Id = "admin-id",
-                            ConcurrencyStamp = "STATIC-GUID-ROLE-ADMIN",
+                            ConcurrencyStamp = "1a0e42fa-ab84-4390-87b9-af82aed2f014",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         });
