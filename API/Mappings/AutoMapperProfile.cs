@@ -15,6 +15,7 @@ namespace API.Mappings
         public AutoMapperProfile()
         {
             CreateMap<Category, CategoryDto>().ReverseMap(); 
+            CreateMap<Transaction, TransactionDetailDto>().ReverseMap();
         }
     }
 }
