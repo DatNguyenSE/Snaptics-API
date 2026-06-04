@@ -10,13 +10,15 @@ namespace DAL.Repositories
     public class UnitOfWork(AppDbContext _context) : IUnitOfWork
     {
         private ICategoryRepository? _categoryRepository;
-
+        private ITransactionRepository? _transactionRepository;
 
         //when other function call (uow.ProductRepository) -> check and avoid create multiple instance
         public ICategoryRepository CategoryRepository => _categoryRepository 
             ??= new CategoryRepository(_context);   
 
-        
+        public ITransactionRepository TransactionRepository => _transactionRepository 
+            ??= new TransactionRepository(_context);
+
         public async Task<bool> Complete()
         {
             return await _context.SaveChangesAsync() > 0;
