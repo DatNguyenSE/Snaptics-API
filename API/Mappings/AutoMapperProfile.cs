@@ -16,6 +16,7 @@ namespace API.Mappings
         {
             CreateMap<Category, CategoryDto>().ReverseMap(); 
             CreateMap<Transaction, TransactionDto>().ReverseMap();
+            CreateMap<TransactionDetail, TransactionDetailDto>().ReverseMap();
         }
     }
 }
