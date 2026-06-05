@@ -41,7 +41,7 @@ namespace API.Controllers
             }
             try
             {
-                var result = await _transactionDetailService.UpdateAsync(transactionDetailDto);
+                var result = await _transactionDetailService.UpdateAsync(id, transactionDetailDto);
                 return Ok(result);
 
             }
