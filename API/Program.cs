@@ -1,4 +1,4 @@
-using System.Text;
+    using System.Text;
 using API.Mappings;
 using API.Middlewares;
 using BLL.Interfaces.IServices;
@@ -35,6 +35,7 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 
 builder.Services.AddScoped<ITransactionDetailService, TransactionDetailService>();
+builder.Services.AddScoped<IItemInventoryService, ItemInventoryService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

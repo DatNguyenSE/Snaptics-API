@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using BLL.Interfaces.IServices;
 using BLL.Dtos;
 using DAL.IRepositories;
 using AutoMapper;
@@ -13,14 +12,14 @@ namespace BLL.Service
     {
         public async Task<IEnumerable<TransactionDetailDto>> GetAllAsync()
         {
-            var details = await _uow.TransactionDetailRepository.GetAllAsync();
-            return mapper.Map<IEnumerable<TransactionDetailDto>>(details);
+            var transactiondetails = await _uow.TransactionDetailRepository.GetAllAsync();
+            return mapper.Map<IEnumerable<TransactionDetailDto>>(transactiondetails);
         }
 
         public async Task<TransactionDetailDto> GetByIdAsync(int id)
         {
-            var detail = await _uow.TransactionDetailRepository.GetByIdAsync(id);
-            return mapper.Map<TransactionDetailDto>(detail);
+            var transactiondetails = await _uow.TransactionDetailRepository.GetByIdAsync(id);
+            return mapper.Map<TransactionDetailDto>(transactiondetails);
         }
 
         public async Task<TransactionDetailDto> CreateAsync(TransactionDetailDto transactionDetailDto)
@@ -31,7 +30,7 @@ namespace BLL.Service
             return mapper.Map<TransactionDetailDto>(entity);
         }
 
-        public async Task<TransactionDetailDto> UpdateAsync(TransactionDetailDto transactionDetailDto)
+        public async Task<TransactionDetailDto> UpdateAsync(int detail,TransactionDetailDto transactionDetailDto)
         {
             var existingEntity = await _uow.TransactionDetailRepository.GetByIdAsync(transactionDetailDto.Id);
             if (existingEntity == null)
