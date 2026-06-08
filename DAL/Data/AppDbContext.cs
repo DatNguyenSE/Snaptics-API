@@ -17,6 +17,7 @@ namespace DAL.Data
         public DbSet<ItemInventory> ItemInventories { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<TransactionDetail> TransactionDetails { get; set; }
+        public DbSet<ItemDictionary> ItemDictionaries { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

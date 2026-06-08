@@ -8,6 +8,7 @@ namespace DAL.IRepositories
         ITransactionDetailRepository TransactionDetailRepository { get; }
         ITransactionRepository TransactionRepository { get; }
         IItemInventoryRepository ItemInventoryRepository { get; }
+        IItemDictionaryRepository ItemDictionaryRepository { get; }
         Task<bool> Complete();
         bool HasChange();
     }

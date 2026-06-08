@@ -37,6 +37,12 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<ITransactionDetailService, TransactionDetailService>();
 builder.Services.AddScoped<IItemInventoryService, ItemInventoryService>();
 
+// AI Services: Gemini Vision + Azure Document Intelligence
+builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddHttpClient(); // Required for Gemini REST API calls
+builder.Services.AddMemoryCache(); // Required for ItemDictionary in-memory caching
+
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 

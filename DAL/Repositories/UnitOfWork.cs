@@ -13,6 +13,7 @@ namespace DAL.Repositories
         private ITransactionDetailRepository? _transactionDetailRepository;
         private ITransactionRepository? _transactionRepository;
         private IItemInventoryRepository? _itemInventoryRepository;
+        private IItemDictionaryRepository? _itemDictionaryRepository;
 
         //when other function call (uow.ProductRepository) -> check and avoid create multiple instance
         public ICategoryRepository CategoryRepository => _categoryRepository 
@@ -25,6 +26,9 @@ namespace DAL.Repositories
 
         public IItemInventoryRepository ItemInventoryRepository => _itemInventoryRepository
             ??= new ItemInventoryRepository(_context);
+
+        public IItemDictionaryRepository ItemDictionaryRepository => _itemDictionaryRepository
+            ??= new ItemDictionaryRepository(_context);
 
         public async Task<bool> Complete()
         {

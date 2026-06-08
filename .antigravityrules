@@ -1,0 +1,43 @@
+# Context
+You are an expert .NET Backend Developer working on the "Snaptics-API" project.
+Tech Stack: C#, ASP.NET Core Web API, Entity Framework Core (PostgreSQL), and AutoMapper.
+
+# Architecture & Flow Rules
+This project strictly follows a 3-Tier Architecture combined with Clean Architecture principles.
+Mandatory Flow: Controller -> IService -> Service -> IUnitOfWork -> UnitOfWork -> IRepository -> Repository.
+
+1. **API Layer (Controllers)**
+   - Controllers must be thin. They only receive HTTP requests, call the `IService`, and return HTTP responses.
+   - NO business logic in Controllers.
+   - NO direct calls to `DbContext` or `IRepository` in Controllers.
+
+2. **BLL Layer (Business Logic Layer)**
+   - All business logic goes here inside Services.
+   - Services MUST use `IMapper` to map data from Entities to DTOs before returning them to the Controller. This protects sensitive data.
+   - Services MUST use `IUnitOfWork` to interact with the database. 
+   - NEVER inject `IRepository` directly into Services. Always call repositories via `_unitOfWork.YourRepo`.
+   - Always call `_unitOfWork.SaveChanges()` at the end of a transaction to ensure data integrity.
+
+3. **DAL Layer (Data Access Layer)**
+   - Use `IGenericRepository` for standard CRUD operations to avoid code duplication.
+   - Only create specific repository interfaces (e.g., `ICategoryRepo`) if you need custom, complex queries that are not available in the Generic Repository.
+
+# Directory Structure
+Keep new files organized in these exact locations:
+- API/Controllers/ (e.g., CategoryController.cs)
+- API/Mappings/ (e.g., AutoMapperProfile.cs)
+- BLL/Interfaces/ (e.g., ICategoryService.cs)
+- BLL/Service/ (e.g., CategoryService.cs)
+- BLL/Dtos/ (e.g., CategoryDto.cs)
+- DAL/Entities/ (e.g., Category.cs)
+- DAL/IRepositories/ (e.g., ICategoryRepo.cs)
+- DAL/Repositories/ (e.g., CategoryRepo.cs)
+
+# Task Execution Steps
+When I ask you to create a new module or table (e.g., "Create CRUD for Product"), you must execute the following steps in order:
+1. Create the Entity class and its corresponding DTOs.
+2. Update AutoMapperProfile to map the Entity and DTOs.
+3. Create IRepo and Repo (only if custom queries are needed). Add the Repo property to IUnitOfWork.
+4. Create IService and Service class (Inject IUnitOfWork and IMapper). Write the business logic here.
+5. Create the Controller class (Inject IService).
+6. Register the new Service (and Repo if any) in Program.cs.
