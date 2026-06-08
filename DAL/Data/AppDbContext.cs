@@ -18,6 +18,8 @@ namespace DAL.Data
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<TransactionDetail> TransactionDetails { get; set; }
         public DbSet<ItemDictionary> ItemDictionaries { get; set; }
+        public DbSet<Budget> Budgets { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
