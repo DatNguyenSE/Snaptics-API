@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,7 +11,7 @@ namespace BLL.Dtos
         public int CategoryId { get; set; }
         public String ItemName { get; set; } = null!;
         public decimal Price { get; set; }
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         public int? EstimatedCalories { get; set; }
     }

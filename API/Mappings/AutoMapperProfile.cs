@@ -18,6 +18,9 @@ namespace API.Mappings
             CreateMap<Transaction, TransactionDto>().ReverseMap();
             CreateMap<TransactionDetail, TransactionDetailDto>().ReverseMap();
             CreateMap<ItemInventory, ItemInventoryDto>().ReverseMap();
+            CreateMap<Budget, BudgetDto>().ReverseMap();
+            CreateMap<Notification, NotificationDto>().ReverseMap();
+            CreateMap<ItemDictionary, ItemDictionaryDto>().ReverseMap();
         }
     }
 }

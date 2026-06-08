@@ -18,7 +18,7 @@ namespace DAL.Entities
         
         public decimal Price { get; set; } = 0m;
         
-        public int Quantity { get; set; } = 1;
+        public decimal Quantity { get; set; } = 1;
         
         public int? EstimatedCalories { get; set; }
 

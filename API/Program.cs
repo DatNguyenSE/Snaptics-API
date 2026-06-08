@@ -36,6 +36,9 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 
 builder.Services.AddScoped<ITransactionDetailService, TransactionDetailService>();
 builder.Services.AddScoped<IItemInventoryService, ItemInventoryService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IItemDictionaryService, ItemDictionaryService>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
