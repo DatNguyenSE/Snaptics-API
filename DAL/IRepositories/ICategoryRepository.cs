@@ -8,6 +8,6 @@ namespace DAL.IRepositories
 {
     public interface ICategoryRepository : IGenericRepository<Category>
     {
-        
+    
     }
 }

@@ -37,5 +37,11 @@ namespace API.Controllers
             var category = await _cateService.CreateAsync(categoryDto);
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
+        [HttpPost("CreateByName")]
+        public async Task<ActionResult<CategoryDto>> CreateCategoryByName([FromBody] string categoryName)
+        {
+            var category = await _cateService.CreateByNameAsync(categoryName);
+            return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
+        }
     }
 }

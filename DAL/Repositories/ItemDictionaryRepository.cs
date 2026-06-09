@@ -34,14 +34,6 @@ namespace DAL.Repositories
         }
 
         /// <summary>
-        /// Batch insert nhiều item mới vào từ điển cùng lúc.
-        /// </summary>
-        public async Task AddRangeAsync(IEnumerable<ItemDictionary> items)
-        {
-            await _dbSet.AddRangeAsync(items);
-        }
-
-        /// <summary>
         /// Lấy toàn bộ từ điển để load vào MemoryCache (dùng AsNoTracking cho hiệu năng).
         /// </summary>
         public async Task<List<ItemDictionary>> GetAllDictionaryAsync()

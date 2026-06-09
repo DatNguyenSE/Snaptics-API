@@ -11,6 +11,8 @@ namespace DAL.IRepositories
         Task<T?> GetByIdAsync(int id);
         Task<IEnumerable<T>> GetAllAsync();
         Task AddAsync(T entity);
+        Task AddRangeAsync(IEnumerable<T> entities);
+        Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
         void Update(T entity);
         void Delete(T entity);   
         Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);

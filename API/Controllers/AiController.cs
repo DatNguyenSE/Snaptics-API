@@ -12,7 +12,7 @@ namespace API.Controllers
     // [Authorize]
     [Route("ai")]
     [ApiController]
-    public class AiController(IAiService _aiService) : ControllerBase
+    public class AiController(IAiService _aiService, ICategoryService _CateService) : ControllerBase
     {
         /// <summary>
         /// Tính năng 1: Phân tích ảnh bằng AI.
@@ -40,6 +40,11 @@ namespace API.Controllers
 
             // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
             var result = await _aiService.AnalyzeImageAsync(image);
+            if(result != null && !string.IsNullOrWhiteSpace(result.Category))
+            {
+                await _CateService.CreateMissingCategoriesAsync(new[] { result.Category });
+            }
+                
             return Ok(result);
         }
 
@@ -68,6 +73,16 @@ namespace API.Controllers
 
             // Bước 3: Gửi file qua AiService để dùng Azure nhận diện và bóc tách thông tin
             var result = await _aiService.ReadBillAsync(billImage);
+           
+            if (result != null && result.Items != null && result.Items.Any())
+            {
+                var categories = result.Items
+                    .Where(i => !string.IsNullOrWhiteSpace(i.Category))
+                    .Select(i => i.Category!);
+                
+                await _CateService.CreateMissingCategoriesAsync(categories);
+            }
+
             return Ok(result);
         }
     }

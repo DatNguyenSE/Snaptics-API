@@ -33,12 +33,15 @@ namespace BLL.Service
 
         // Prompt mạnh mẽ gửi kèm ảnh phân tích
         private const string AnalyzeImagePrompt =
-            "Đóng vai một chuyên gia dinh dưỡng và định giá. " +
-            "Hãy phân tích hình ảnh này. CHÚ Ý: NẾU CÓ NHIỀU VẬT THỂ GIỐNG NHAU, HÃY ĐẾM SỐ LƯỢNG VÀ NHÂN TỔNG calo cùng giá tiền lên. " +
-            "Ví dụ: Nếu thấy 2 quả táo, itemName phải là 'Táo đỏ (2 quả)', estimatedCalories là tổng calo của 2 quả, estimatedPriceVND là tổng giá 2 quả. " +
+            "Đóng vai một chuyên gia thẩm định giá và chuyên gia dinh dưỡng. " +
+            "Hãy phân tích hình ảnh này để xác định đây là món đồ hay thực phẩm gì. " +
+            "CHÚ Ý: NẾU CÓ NHIỀU VẬT THỂ GIỐNG NHAU, HÃY ĐẾM SỐ LƯỢNG VÀ NHÂN TỔNG calo (nếu là đồ ăn) cùng tổng giá tiền thị trường lên. " +
+            "Ví dụ 1: Nếu thấy 2 quả táo, itemName là 'Táo đỏ (2 quả)', category là 'Thực phẩm', estimatedCalories là tổng calo, estimatedPriceVND là tổng giá 2 quả. " +
+            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng', category là 'Đồ nội thất', estimatedCalories là 0, estimatedPriceVND là giá thị trường ước tính của cái ghế đó. " +
+            "Quy tắc phân loại (category): Phân loại càng cụ thể càng tốt bằng tiếng Việt (ví dụ: Thực phẩm, Đồ nội thất, Đồ điện tử, Quần áo, Văn phòng phẩm, Mỹ phẩm, v.v.). Nếu không thể xác định, BẮT BUỘC để category là 'Unknown'. Không trả về chuỗi chung chung như 'Food/Object' hay 'Object'. " +
             "Trả về cho tôi một chuỗi JSON chuẩn có cấu trúc: " +
-            "{ \"itemName\": \"\", \"category\": \"Food/Object\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
-            "Chỉ trả về JSON, không giải thích gì thêm. Không bọc kết quả trong markdown (json ).";
+            "{ \"itemName\": \"\", \"category\": \"\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
+            "Chỉ trả về JSON, không giải thích gì thêm. Không bọc kết quả trong markdown (như ```json ).";
 
         public AiService(IHttpClientFactory httpClientFactory, IConfiguration config,
             IUnitOfWork unitOfWork, IMemoryCache cache)
@@ -130,6 +133,9 @@ namespace BLL.Service
                 {
                     PropertyNameCaseInsensitive = true
                 }) ?? throw new Exception("Deserialize ra null.");
+
+              
+                
 
                 return new AnalyzeImageResponseDto
                 {
@@ -365,8 +371,9 @@ namespace BLL.Service
             var itemNamesJson = JsonSerializer.Serialize(unresolvedItems.Select(x => x.ItemName).ToList());
 
             var prompt =
-                "Bạn là chuyên gia phân loại hàng hóa. Hãy phân loại các mặt hàng dưới đây thành 'Food' (đồ ăn/uống) hoặc 'Object' (vật dụng/khác). " +
-                "BẮT BUỘC trả về một JSON object có dạng: { \"items\": [ {\"ItemName\": \"...\", \"Category\": \"Food\"} ] }. " +
+                "Bạn là chuyên gia phân loại hàng hóa. Hãy phân loại các mặt hàng dưới đây theo từng danh mục cụ thể bằng tiếng Việt (ví dụ: Thực phẩm, Đồ nội thất, Đồ điện tử, Quần áo, Văn phòng phẩm, Mỹ phẩm, v.v.). " +
+                "Nếu không thể xác định được danh mục của một mặt hàng, BẮT BUỘC để Category là 'Unknown'. Không dùng 'Food/Object' hay 'Object'. " +
+                "BẮT BUỘC trả về một JSON object có dạng: { \"items\": [ {\"ItemName\": \"...\", \"Category\": \"Thực phẩm\"} ] }. " +
                 "Giữ nguyên tên món (ItemName) y hệt như trong input. Không giải thích thêm." +
                 "\n\nDanh sách cần phân loại (JSON array):\n" + itemNamesJson;
 
@@ -478,5 +485,7 @@ namespace BLL.Service
         {
             public List<LlmCategoryResult> Items { get; set; } = new();
         }
+
+        
     }
 }
