@@ -35,12 +35,12 @@ namespace BLL.Service
         private const string AnalyzeImagePrompt =
             "Đóng vai một chuyên gia thẩm định giá và chuyên gia dinh dưỡng. " +
             "Hãy phân tích hình ảnh này để xác định đây là món đồ hay thực phẩm gì. " +
-            "CHÚ Ý: NẾU CÓ NHIỀU VẬT THỂ GIỐNG NHAU, HÃY ĐẾM SỐ LƯỢNG VÀ NHÂN TỔNG calo (nếu là đồ ăn) cùng tổng giá tiền thị trường lên. " +
-            "Ví dụ 1: Nếu thấy 2 quả táo, itemName là 'Táo đỏ (2 quả)', category là 'Thực phẩm', estimatedCalories là tổng calo, estimatedPriceVND là tổng giá 2 quả. " +
-            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng', category là 'Đồ nội thất', estimatedCalories là 0, estimatedPriceVND là giá thị trường ước tính của cái ghế đó. " +
-            "Quy tắc phân loại (category): Phân loại càng cụ thể càng tốt bằng tiếng Việt (ví dụ: Thực phẩm, Đồ nội thất, Đồ điện tử, Quần áo, Văn phòng phẩm, Mỹ phẩm, v.v.). Nếu không thể xác định, BẮT BUỘC để category là 'Unknown'. Không trả về chuỗi chung chung như 'Food/Object' hay 'Object'. " +
+            "CHÚ Ý CỰC KỲ QUAN TRỌNG: BẠN PHẢI QUAN SÁT KỸ VÀ ĐẾM CHÍNH XÁC SỐ LƯỢNG VẬT THỂ CÙNG LOẠI XUẤT HIỆN TRONG ẢNH. " +
+            "Ví dụ 1: Nếu thấy 2 ly trà sữa, itemName là 'Trà sữa (2 ly)', quantity là 2, category là 'Drink', estimatedCalories là tổng calo của 2 ly, estimatedPriceVND là tổng giá 2 ly. " +
+            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng (1 cái)', quantity là 1, category là 'Furniture', estimatedCalories là 0, estimatedPriceVND là giá thị trường ước tính của 1 cái ghế đó. " +
+            "Quy tắc phân loại (category): Phân loại càng cụ thể càng tốt bằng TIẾNG ANH (ví dụ: Food, Drink, Furniture, Electronics, Clothing, Stationery, Cosmetics, Necessities, v.v.). 'Drink' dành riêng cho thức uống. Nếu không thể xác định, BẮT BUỘC để category là 'Unknown'. Không trả về chuỗi chung chung như 'Food/Object'. " +
             "Trả về cho tôi một chuỗi JSON chuẩn có cấu trúc: " +
-            "{ \"itemName\": \"\", \"category\": \"\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
+            "{ \"itemName\": \"\", \"quantity\": <điền số lượng đếm được>, \"category\": \"\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
             "Chỉ trả về JSON, không giải thích gì thêm. Không bọc kết quả trong markdown (như ```json ).";
 
         public AiService(IHttpClientFactory httpClientFactory, IConfiguration config,
@@ -141,6 +141,7 @@ namespace BLL.Service
                 {
                     ItemName = result.ItemName,
                     Category = result.Category,
+                    Quantity = result.Quantity,
                     EstimatedCalories = result.EstimatedCalories,
                     EstimatedPriceVND = result.EstimatedPriceVND
                 };
@@ -333,17 +334,16 @@ namespace BLL.Service
                 var category = llmResult?.Category ?? "Unknown";
                 unresolved.Category = category;
 
-                // Chỉ lưu vào từ điển nếu LLM trả về kết quả hợp lệ
-                if (category != "Unknown")
+                // Lưu tất cả vào từ điển, bao gồm cả "Unknown" để:
+                // 1. Caching cho lần sau (tiết kiệm gọi LLM)
+                // 2. Cho phép người dùng hoặc Admin vào DB chỉnh sửa lại thủ công (train/học máy)
+                newEntries.Add(new ItemDictionary
                 {
-                    newEntries.Add(new ItemDictionary
-                    {
-                        Keyword = unresolved.ItemName,
-                        NormalizedKeyword = unresolved.ItemName.Trim().ToLowerInvariant(),
-                        Category = category,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
+                    Keyword = unresolved.ItemName,
+                    NormalizedKeyword = unresolved.ItemName.Trim().ToLowerInvariant(),
+                    Category = category,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
 
             // Batch insert + lưu DB
@@ -371,11 +371,22 @@ namespace BLL.Service
             var itemNamesJson = JsonSerializer.Serialize(unresolvedItems.Select(x => x.ItemName).ToList());
 
             var prompt =
-                "Bạn là chuyên gia phân loại hàng hóa. Hãy phân loại các mặt hàng dưới đây theo từng danh mục cụ thể bằng tiếng Việt (ví dụ: Thực phẩm, Đồ nội thất, Đồ điện tử, Quần áo, Văn phòng phẩm, Mỹ phẩm, v.v.). " +
-                "Nếu không thể xác định được danh mục của một mặt hàng, BẮT BUỘC để Category là 'Unknown'. Không dùng 'Food/Object' hay 'Object'. " +
-                "BẮT BUỘC trả về một JSON object có dạng: { \"items\": [ {\"ItemName\": \"...\", \"Category\": \"Thực phẩm\"} ] }. " +
-                "Giữ nguyên tên món (ItemName) y hệt như trong input. Không giải thích thêm." +
-                "\n\nDanh sách cần phân loại (JSON array):\n" + itemNamesJson;
+                "Bạn là hệ thống AI phân loại hàng hóa siêu thị và hóa đơn. Nhiệm vụ của bạn là đọc tên món hàng (bằng tiếng Việt) và gán ĐÚNG 1 danh mục bằng TIẾNG ANH.\n" +
+                "DANH SÁCH DANH MỤC ĐƯỢC PHÉP SỬ DỤNG (CHỈ CHỌN 1 TRONG SỐ NÀY):\n" +
+                "- 'Food': Tất cả đồ ăn, thức ăn, gia vị, nông sản. Đã bao gồm: đậu hũ, đường, tương ớt, khoai lang, xà lách, dưa leo, cà rốt, rau thơm, dưa hấu, chuối, chả lụa, thịt, cá, gạo, bánh kẹo, v.v.\n" +
+                "- 'Drink': Tất cả các loại thức uống (nước ngọt, bia, rượu, trà sữa, cà phê, nước ép...)\n" +
+                "- 'Necessities': Nhu yếu phẩm, đồ dùng sinh hoạt (xà phòng, giấy vệ sinh, nước giặt...)\n" +
+                "- 'Cosmetics': Mỹ phẩm, chăm sóc cơ thể.\n" +
+                "- 'Electronics': Đồ điện, điện tử.\n" +
+                "- 'Clothing': Quần áo, giày dép.\n" +
+                "- 'Stationery': Văn phòng phẩm, sách vở.\n" +
+                "- 'Furniture': Đồ nội thất.\n" +
+                "- 'Unknown': TUYỆT ĐỐI CHỈ DÙNG khi dòng text là vô nghĩa, hoặc là các khoản phí (vd: 'Giảm giá', 'VAT', 'Phí dịch vụ'). KHÔNG dùng cho thực phẩm hay thức uống.\n\n" +
+                "QUY TẮC CỐT LÕI:\n" +
+                "1. KHÔNG trả về tiếng Việt ở trường Category (Cấm dùng 'Thực phẩm' hay 'Thức uống', bắt buộc dùng 'Food' hoặc 'Drink').\n" +
+                "2. Phải tìm từ khóa chính (vd: 'TƯƠNG ỚT XANH' -> gia vị -> Food, 'KHOAI LANG NHẬT' -> nông sản -> Food, 'COCA COLA' -> Drink). Bỏ qua các ký tự viết tắt hay thương hiệu.\n" +
+                "3. Trả về đúng cấu trúc JSON: { \"items\": [ {\"ItemName\": \"<tên gốc>\", \"Category\": \"<1 danh mục tiếng Anh>\"} ] }\n" +
+                "Danh sách mặt hàng đầu vào:\n" + itemNamesJson;
 
             var payload = new
             {
@@ -469,6 +480,7 @@ namespace BLL.Service
         {
             public string ItemName { get; set; } = string.Empty;
             public string Category { get; set; } = string.Empty;
+            public decimal Quantity { get; set; } = 1;
             public int EstimatedCalories { get; set; }
             public long EstimatedPriceVND { get; set; }
         }

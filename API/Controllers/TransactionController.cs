@@ -1,4 +1,5 @@
-﻿using BLL.Dtos;
+using API.Extensions;
+using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,6 +41,32 @@ namespace API.Controllers
             var transaction =
                 await _transactionService.CreateAsync(transactionDto);
                 return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id },transaction);
+        }
+
+
+
+        private string GetUserId()
+        {
+            // Tạm thời mock UserID cho quá trình test. Sau này lấy từ JWT: User.FindFirstValue(ClaimTypes.NameIdentifier)
+            return "user-12345-mock-id";
+        }
+
+        [HttpPost("from-bill")]
+        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromBody] BLL.Dtos.AiDto.BillReadResultDto billDto)
+        {   
+            // var userId =User.GetUserId(); 
+            var userId = GetUserId();
+            var transaction = await _transactionService.CreateFromBillAsync(userId, billDto);
+            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+        }
+
+        [HttpPost("from-analyze")]
+        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromBody] BLL.Dtos.AiDto.AnalyzeImageResponseDto imageDto)
+        {   
+            // var userId =User.GetUserId(); 
+            var userId = GetUserId();
+            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto);
+            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
 
         [HttpPut("{id}")]

@@ -11,6 +11,8 @@ namespace BLL.Dtos.AiDto
         /// <summary>"Food" hoặc "Object"</summary>
         public string Category { get; set; } = string.Empty;
 
+        public decimal Quantity { get; set; } = 1;
+
         public int EstimatedCalories { get; set; }
 
         public long EstimatedPriceVND { get; set; }
