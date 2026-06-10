@@ -3,6 +3,7 @@ using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
+using DAL.Enums;
 
 namespace BLL.Service
 {
@@ -133,8 +134,34 @@ namespace BLL.Service
                 });
             }
 
-            // 7. Lưu tất cả (Transaction và TransactionDetails) bằng 1 lệnh SaveChanges
+            // 7. Lưu Transaction + TransactionDetails
             await _uow.TransactionRepository.AddAsync(transaction);
+            await _uow.Complete();
+
+
+            // 8. Auto create ItemInventory cho category được tracking
+            foreach (var detail in transaction.TransactionDetails)
+            {
+                var category = await _uow.CategoryRepository
+                    .GetByIdAsync(detail.CategoryId);
+
+                if (category != null && category.IsTrackableInventory)
+                {
+                    var inventory = new ItemInventory
+                    {
+                        UserId = transaction.UserId,
+                        TransactionDetailId = detail.Id,
+                        UsageStatus = UsageStatusType.Frequent,
+                        IsReviewed = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _uow.ItemInventoryRepository
+                        .AddAsync(inventory);
+                }
+            }
+
+            // Save ItemInventory
             await _uow.Complete();
 
             return mapper.Map<TransactionDto>(transaction);
