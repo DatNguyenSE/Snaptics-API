@@ -63,5 +63,12 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("need-review")]
+        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemsNeedReview()
+        {
+            var items = await itemInventoryService.GetItemsNeedReviewAsync();
+            return Ok(items);
+        }
     }
 }

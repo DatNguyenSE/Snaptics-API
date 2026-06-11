@@ -14,5 +14,6 @@ namespace BLL.Interfaces.IServices
         Task<ItemInventoryDto> CreateAsync(ItemInventoryDto itemInventoryDto);
         Task<ItemInventoryDto> UpdateAsync(int itemInventoryId, ItemInventoryDto itemInventoryDto);
         Task<ItemInventoryDto> DeleteAsync(int itemInventoryId);
+        Task<IEnumerable<ItemInventoryDto>> GetItemsNeedReviewAsync();
     }
 }
