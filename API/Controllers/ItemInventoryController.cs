@@ -73,7 +73,7 @@ namespace API.Controllers
         }
 
         [HttpPut("{id}/review")]
-        public async Task<ActionResult<ItemInventoryController>> ReviewItem(int id, [FromQuery] UsageStatusType usageStatus)
+        public async Task<ActionResult<ItemInventoryDto>> ReviewItem(int id, [FromQuery] UsageStatusType usageStatus)
         {
             try
             {
