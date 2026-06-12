@@ -1,6 +1,7 @@
 using API.Extensions;
 using BLL.Dtos;
 using BLL.Interfaces.IServices;
+using BLL.Service;
 using DAL.IRepositories;
 using Microsoft.AspNetCore.Mvc;
 
@@ -95,7 +96,7 @@ namespace API.Controllers
                 return NotFound(new { Message = "Không tìm thấy hóa đơn." });
 
             decimal newTotalAmount = transaction.TotalAmount; 
-// Lặp qua từng món user gửi lên
+            // Lặp qua từng món user gửi lên
             foreach (var itemDto in itemsDto)
             {
                 // Lấy trực tiếp từng món đồ lên từ Database thông qua ID của nó
@@ -127,6 +128,18 @@ namespace API.Controllers
             await _uow.Complete();
 
             return Ok(new { Message = "Xác nhận giá thành công!", TotalAmount = newTotalAmount });
+        }
+
+        [HttpPost("test-trigger-missing-price-scan")]
+        public async Task<IActionResult> TestTriggerMissingPriceScan(
+            [FromServices] IMissingPriceJob missingPriceJob) 
+        {
+            await missingPriceJob.ScanAndSendNotificationAsync(); 
+            
+            return Ok(new 
+            { 
+                Message = "Manual trigger for missing price scan executed successfully." 
+            });
         }
     }
 }
