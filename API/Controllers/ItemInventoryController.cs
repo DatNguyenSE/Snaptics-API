@@ -66,9 +66,9 @@ namespace API.Controllers
         }
 
         [HttpGet("need-review")]
-        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemsNeedReview()
+        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemsNeedReview([FromQuery] int days = 30)
         {
-            var items = await itemInventoryService.GetItemsNeedReviewAsync();
+            var items = await itemInventoryService.GetItemsNeedReviewAsync(days);
             return Ok(items);
         }
 

@@ -56,11 +56,11 @@ namespace BLL.Service
             return mapper.Map<ItemInventoryDto>(existingEntity);
         }
 
-        public async Task<IEnumerable<ItemInventoryDto>> GetItemsNeedReviewAsync()
+        public async Task<IEnumerable<ItemInventoryDto>> GetItemsNeedReviewAsync(int days = 30)
         {
-            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
-            var itemsNeedReview = await _uow.ItemInventoryRepository.FindAsync(i => i.CreatedAt <= thirtyDaysAgo && !i.IsReviewed);
-            return mapper.Map<IEnumerable<ItemInventoryDto>>(itemsNeedReview);
+            var thresholdDate = DateTime.UtcNow.AddDays(-days);
+            var items = await _uow.ItemInventoryRepository.FindAsync(x => !x.IsReviewed && x.CreatedAt <= thresholdDate);
+            return mapper.Map<IEnumerable<ItemInventoryDto>>(items);
         }
 
         public async Task<ItemInventoryDto>ReviewItemAsync(int itemInventoryId, UsageStatusType usageStatus)
