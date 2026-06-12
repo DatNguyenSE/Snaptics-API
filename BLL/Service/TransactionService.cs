@@ -9,7 +9,8 @@ namespace BLL.Service
 {
     public class TransactionService(
         IUnitOfWork _uow,
-        IMapper mapper
+        IMapper mapper,
+        IItemDictionaryService _itemDictionaryService
     ) : ITransactionService
     {
         public async Task<IEnumerable<TransactionDto>
@@ -199,6 +200,16 @@ namespace BLL.Service
                 transactionDto.IsAiEstimated = false;
             }
 
+            // Gọi hàm học hỏi từ user feedback
+            try
+            {
+                await _itemDictionaryService.LearnFromUserFeedbackAsync(billDto.Items);
+            }
+            catch
+            {
+                // Không block luồng chính lưu hóa đơn
+            }
+
             return transactionDto;
         }
 
@@ -235,6 +246,26 @@ namespace BLL.Service
                 _uow.TransactionRepository.Update(transaction);
                 await _uow.Complete();
                 transactionDto.IsAiEstimated = true;
+            }
+
+            // Gọi hàm học hỏi từ user feedback
+            try
+            {
+                var feedbackItems = new List<BLL.Dtos.AiDto.BillItemDto>
+                {
+                    new BLL.Dtos.AiDto.BillItemDto
+                    {
+                        ItemName = imageDto.ItemName,
+                        Category = imageDto.Category,
+                        Quantity = imageDto.Quantity,
+                        Price = imageDto.EstimatedPriceVND
+                    }
+                };
+                await _itemDictionaryService.LearnFromUserFeedbackAsync(feedbackItems);
+            }
+            catch
+            {
+                // Không block luồng chính lưu hóa đơn
             }
 
             return transactionDto;

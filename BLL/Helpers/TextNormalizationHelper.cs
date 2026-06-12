@@ -51,5 +51,47 @@ namespace BLL.Helpers
 
             return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
         }
+
+        public static int CalculateLevenshteinDistance(string source, string target)
+        {
+            if (string.IsNullOrEmpty(source)) return target?.Length ?? 0;
+            if (string.IsNullOrEmpty(target)) return source.Length;
+
+            int[] costs = new int[target.Length + 1];
+            for (int i = 0; i <= source.Length; i++)
+            {
+                int previousValue = i;
+                for (int j = 0; j <= target.Length; j++)
+                {
+                    if (i == 0)
+                    {
+                        costs[j] = j;
+                    }
+                    else if (j > 0)
+                    {
+                        int currentValue = costs[j - 1];
+                        if (source[i - 1] != target[j - 1])
+                        {
+                            currentValue = Math.Min(Math.Min(currentValue, previousValue), costs[j]) + 1;
+                        }
+                        costs[j - 1] = previousValue;
+                        previousValue = currentValue;
+                    }
+                }
+                if (i > 0) costs[target.Length] = previousValue;
+            }
+            return costs[target.Length];
+        }
+
+        public static double CalculateSimilarity(string source, string target)
+        {
+            if (source == target) return 1.0;
+            if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target)) return 0.0;
+
+            int distance = CalculateLevenshteinDistance(source, target);
+            int maxLength = Math.Max(source.Length, target.Length);
+            
+            return 1.0 - ((double)distance / maxLength);
+        }
     }
 }

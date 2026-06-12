@@ -59,7 +59,7 @@ namespace BLL.Service
         
         // ═══════════════════════════════════════════════════════
         // Feature 1: Phân tích ảnh bằng AI (ChatGPT / gpt-4o-mini)
-        public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(IFormFile image)
+        public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(IFormFile image, bool trackCalories = true, bool estimatePrice = true)
         {
             var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
             var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
@@ -81,7 +81,50 @@ namespace BLL.Service
                 base64Image = Convert.ToBase64String(ms.ToArray());
             }
 
-            // 3. Xây dựng Payload theo chuẩn OpenAI API.
+            // 3. Xây dựng Prompt động dựa trên cấu hình người dùng (Nâng cao độ chính xác)
+            var promptBuilder = new StringBuilder();
+            promptBuilder.Append("Bạn là một chuyên gia AI phân tích hình ảnh chuyên sâu");
+            if (trackCalories) promptBuilder.Append(" kết hợp vai trò chuyên gia dinh dưỡng");
+            if (estimatePrice) promptBuilder.Append(" kết hợp vai trò chuyên gia thẩm định giá");
+            promptBuilder.Append(". Hãy thực hiện phân tích bức ảnh này và trả về kết quả đáp ứng các tiêu chí nghiêm ngặt sau:\n");
+
+            promptBuilder.Append("1. TÊN VẬT THỂ (itemName):\n");
+            promptBuilder.Append("   - BẮT BUỘC viết bằng TIẾNG VIỆT có dấu.\n");
+            promptBuilder.Append("   - Hãy quan sát kỹ nhãn hiệu, logo, bao bì, chữ viết xuất hiện trong ảnh để lấy tên chi tiết nhất có thể (Ví dụ: 'Ly cà phê Catinat', 'Bánh mì sandwich Kinh Đô', 'Lon Coca-Cola 320ml', 'Ốp lưng iPhone silicon màu đỏ' thay vì gọi chung chung là 'Cà phê', 'Bánh mì', 'Nước ngọt', 'Ốp lưng').\n");
+            promptBuilder.Append("   - BẮT BUỘC đếm chính xác số lượng vật thể cùng loại xuất hiện trong ảnh và ghi rõ định lượng ở tên nếu có.\n\n");
+
+            promptBuilder.Append("2. DANH MỤC (category):\n");
+            promptBuilder.Append("   - BẮT BUỘC dùng TIẾNG ANH.\n");
+            promptBuilder.Append("   - Hãy phân loại danh mục một cách linh hoạt, chính xác và cụ thể nhất dựa trên đặc tính của vật thể (Ví dụ: 'Food', 'Drink', 'Apparel', 'Electronics', 'Books', 'Toys', 'Kitchenware', 'Vehicle', 'Cosmetics', 'Necessities', v.v. — KHÔNG BỊ GIỚI HẠN trong một danh sách cố định).\n");
+            promptBuilder.Append("   - Chỉ sử dụng 'Unknown' khi vật thể thực sự không thể nhận diện được (bị che khuất, quá mờ hoặc hoàn toàn không có thông tin).\n\n");
+
+            if (trackCalories)
+            {
+                promptBuilder.Append("3. ĐỊNH LƯỢNG CALO (estimatedCalories):\n");
+                promptBuilder.Append("   - Ước tính lượng calo (kcal) thực tế và khoa học dựa trên món ăn/đồ uống được nhận diện, kích thước hoặc định lượng ước chừng trong ảnh.\n");
+                promptBuilder.Append("   - Ví dụ chuẩn xác: 1 ly trà sữa trân châu thường khoảng 350-450 kcal; 1 đĩa cơm sườn trứng khoảng 600-750 kcal; 1 ổ bánh mì thịt khoảng 350-400 kcal; 1 cốc cafe sữa đá khoảng 100-150 kcal.\n");
+                promptBuilder.Append("   - BẮT BUỘC nhân lượng calo tương ứng với số lượng (quantity) vật thể đếm được (Ví dụ: phát hiện 2 ly trà sữa thì calo phải là tổng của cả 2 ly).\n");
+                promptBuilder.Append("   - Nếu vật thể KHÔNG PHẢI đồ ăn hoặc thức uống, BẮT BUỘC gán giá trị là 0.\n\n");
+            }
+
+            if (estimatePrice)
+            {
+                promptBuilder.Append("4. ƯỚC TÍNH GIÁ (estimatedPriceVND):\n");
+                promptBuilder.Append("   - Ước tính tổng giá trị thị trường của (các) vật thể đó bằng Việt Nam Đồng (VND).\n");
+                promptBuilder.Append("   - Giá phải nhân tương ứng với số lượng đếm được.\n\n");
+            }
+
+            promptBuilder.Append("Trả về duy nhất một chuỗi JSON chuẩn có cấu trúc: {\n");
+            promptBuilder.Append("  \"itemName\": \"\",\n");
+            promptBuilder.Append("  \"quantity\": <số lượng vật thể đếm được (decimal/int)>,\n");
+            promptBuilder.Append("  \"category\": \"\"");
+            if (trackCalories) promptBuilder.Append(",\n  \"estimatedCalories\": <tổng calo ước tính (int)>");
+            if (estimatePrice) promptBuilder.Append(",\n  \"estimatedPriceVND\": <tổng giá trị ước tính VND (long)>");
+            promptBuilder.Append("\n}. Chỉ trả về JSON, không kèm giải thích hay bất kỳ chữ nào khác. Không bọc kết quả trong markdown (```json).");
+
+            var dynamicPrompt = promptBuilder.ToString();
+
+            // 4. Xây dựng Payload theo chuẩn OpenAI API.
             // Payload bao gồm Prompt và ảnh dạng Base64.
             var payload = new
             {
@@ -93,7 +136,7 @@ namespace BLL.Service
                         role = "user",
                         content = new object[]
                         {
-                            new { type = "text", text = AnalyzeImagePrompt },
+                            new { type = "text", text = dynamicPrompt },
                             new 
                             { 
                                 type = "image_url", 
@@ -294,7 +337,7 @@ namespace BLL.Service
             var unresolvedItems = new List<BillItemDto>();
             var matchedIds = new HashSet<int>();
 
-            // ── BƯỚC 2: Quét qua từng item, chuẩn hóa & so khớp nguyên từ với từ điển cache ─────
+            // ── BƯỚC 2: Quét qua từng item, chuẩn hóa & so khớp nguyên từ hoặc khớp mờ với từ điển cache ─────
             foreach (var item in items)
             {
                 var normalizedName = TextNormalizationHelper.NormalizeItemName(item.ItemName);
@@ -315,9 +358,35 @@ namespace BLL.Service
                     }
                 }
 
+                // TIER 2: So khớp mờ (Fuzzy Match) sử dụng Levenshtein nếu Tier 1 thất bại
+                if (bestMatch == null)
+                {
+                    double maxSimilarity = 0.0;
+                    ItemDictionary? bestFuzzyMatch = null;
+
+                    foreach (var dictItem in orderedDictionary)
+                    {
+                        if (string.IsNullOrWhiteSpace(dictItem.NormalizedKeyword)) continue;
+
+                        double similarity = CalculateSimilarity(normalizedName, dictItem.NormalizedKeyword);
+
+                        // Ngưỡng chấp nhận (ví dụ >= 80% tương đồng)
+                        if (similarity >= 0.8 && similarity > maxSimilarity)
+                        {
+                            maxSimilarity = similarity;
+                            bestFuzzyMatch = dictItem;
+                        }
+                    }
+
+                    if (bestFuzzyMatch != null)
+                    {
+                        bestMatch = bestFuzzyMatch;
+                    }
+                }
+
                 if (bestMatch != null)
                 {
-                    // Khớp từ khóa gốc thành công → gán danh mục trực tiếp và lưu lại ID để tăng HitCount
+                    // Khớp từ khóa gốc thành công (hoặc khớp mờ thành công) → gán danh mục trực tiếp và lưu lại ID để tăng HitCount
                     item.Category = bestMatch.Category;
                     matchedIds.Add(bestMatch.Id);
                 }

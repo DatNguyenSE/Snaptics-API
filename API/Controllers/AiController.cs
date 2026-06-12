@@ -28,7 +28,10 @@ namespace API.Controllers
         [ProducesResponseType(typeof(AnalyzeImageResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<AnalyzeImageResponseDto>> AnalyzeImage(IFormFile image)
+        public async Task<ActionResult<AnalyzeImageResponseDto>> AnalyzeImage(
+            IFormFile image,
+            [FromQuery] bool trackCalories = true,
+            [FromQuery] bool estimatePrice = true)
         {
             // Bước 1: Validate đầu vào, đảm bảo có file và không trống
             if (image == null || image.Length == 0)
@@ -39,7 +42,7 @@ namespace API.Controllers
                 return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
 
             // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
-            var result = await _aiService.AnalyzeImageAsync(image);
+            var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
             return Ok(result);
         }
 
