@@ -19,6 +19,9 @@ namespace DAL.Entities
         /// <summary>"Food" hoặc "Object"</summary>
         public string Category { get; set; } = string.Empty;
 
+        /// <summary>Số lần mặt hàng được so khớp thành công</summary>
+        public int HitCount { get; set; } = 1;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

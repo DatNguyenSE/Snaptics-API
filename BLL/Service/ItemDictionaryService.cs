@@ -74,5 +74,23 @@ namespace BLL.Service
             await _uow.Complete();
             return _mapper.Map<ItemDictionaryDto>(existingEntity);
         }
+
+        public async Task<int> CleanupAsync(int maxHitCount, int olderThanDays)
+        {
+            var thresholdDate = DateTime.UtcNow.AddDays(-olderThanDays);
+            var itemsToDelete = await _uow.ItemDictionaryRepository.FindAsync(d => d.HitCount <= maxHitCount && d.CreatedAt <= thresholdDate);
+            var itemsList = itemsToDelete.ToList();
+            var count = 0;
+            foreach (var item in itemsList)
+            {
+                _uow.ItemDictionaryRepository.Delete(item);
+                count++;
+            }
+            if (count > 0)
+            {
+                await _uow.Complete();
+            }
+            return count;
+        }
     }
 }

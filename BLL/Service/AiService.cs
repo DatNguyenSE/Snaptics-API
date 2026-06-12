@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using Azure;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
 using BLL.Dtos.AiDto;
+using BLL.Helpers;
 using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
@@ -16,6 +17,9 @@ namespace BLL.Service
 {
     public class AiService : IAiService
     {
+
+#region Fields, Prompt and Constructor
+        
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
         private readonly IUnitOfWork _unitOfWork;
@@ -51,10 +55,10 @@ namespace BLL.Service
             _unitOfWork = unitOfWork;
             _cache = cache;
         }
-
+#endregion
+        
         // ═══════════════════════════════════════════════════════
         // Feature 1: Phân tích ảnh bằng AI (ChatGPT / gpt-4o-mini)
-        // ═══════════════════════════════════════════════════════
         public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(IFormFile image)
         {
             var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
@@ -78,7 +82,7 @@ namespace BLL.Service
             }
 
             // 3. Xây dựng Payload theo chuẩn OpenAI API.
-            // Payload bao gồm Prompt (hướng dẫn AI đóng vai chuyên gia dinh dưỡng) và ảnh dạng Base64.
+            // Payload bao gồm Prompt và ảnh dạng Base64.
             var payload = new
             {
                 model = modelName,
@@ -154,7 +158,7 @@ namespace BLL.Service
 
         // ═══════════════════════════════════════════════════════
         // Feature 2: Đọc Bill bằng Azure Document Intelligence
-        // ═══════════════════════════════════════════════════════
+
         public async Task<BillReadResultDto> ReadBillAsync(IFormFile billImage)
         {
             // 1. Kiểm tra tính hợp lệ của file hóa đơn
@@ -221,7 +225,12 @@ namespace BLL.Service
                         var billItem = new BillItemDto();
 
                         if (itemDict.TryGetValue("Description", out var descField))
-                            billItem.ItemName = descField.Content ?? "Unknown Item";
+                        {
+                            var rawName = descField.Content ?? "Unknown Item";
+                            // Loại bỏ ký tự xuống dòng và làm sạch khoảng trắng thừa
+                            var cleanName = rawName.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ");
+                            billItem.ItemName = System.Text.RegularExpressions.Regex.Replace(cleanName, @"\s+", " ").Trim();
+                        }
 
                         // Fix: Dùng decimal và parse tay từ Content để tránh lỗi locale vi-VN (hiểu nhầm 1.344 thành 1344)
                         if (itemDict.TryGetValue("Quantity", out var qtyField))
@@ -267,92 +276,144 @@ namespace BLL.Service
             return billResult;
         }
 
-        /// <summary>
-        /// Phân loại items bằng pattern: Local Dictionary Cache → LLM Fallback → Self-learning.
-        /// - Bước 1: Load từ điển từ DB vào MemoryCache (cache 30 phút).
-        /// - Bước 2: So khớp từng item với cache. Items đã biết được gán category ngay.
-        /// - Bước 3: Chỉ gửi những items CHƯA BIẾT lên LLM (1 request duy nhất).
-        /// - Bước 4: Lưu kết quả mới từ LLM vào DB + invalidate cache (self-learning).
-        /// </summary>
+   
+        // Phân loại items bằng pattern: Local Dictionary Cache → LLM Fallback → Self-learning.
+
         private async Task EnrichItemCategoriesAsync(List<BillItemDto> items)
         {
-            // ── BƯỚC 1: Load từ điển vào MemoryCache ──────────────────────────────────
+            // ── BƯỚC 1: Load từ điển vào MemoryCache & Sắp xếp theo độ dài giảm dần ────────
             var dictionary = await _cache.GetOrCreateAsync(DictionaryCacheKey, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = CacheExpiry;
                 return await _unitOfWork.ItemDictionaryRepository.GetAllDictionaryAsync();
             }) ?? new List<ItemDictionary>();
 
-            // ── BƯỚC 2: Quét qua từng item, so khớp với từ điển cache ────────────────
-            var unresolvedItems = new List<BillItemDto>();
+            // Ưu tiên khớp từ khóa dài trước (ví dụ: "bắp bò" trước "bò")
+            var orderedDictionary = dictionary.OrderByDescending(d => d.NormalizedKeyword.Length).ToList();
 
+            var unresolvedItems = new List<BillItemDto>();
+            var matchedIds = new HashSet<int>();
+
+            // ── BƯỚC 2: Quét qua từng item, chuẩn hóa & so khớp nguyên từ với từ điển cache ─────
             foreach (var item in items)
             {
-                var normalizedName = item.ItemName.Trim().ToLowerInvariant();
+                var normalizedName = TextNormalizationHelper.NormalizeItemName(item.ItemName);
+                if (string.IsNullOrWhiteSpace(normalizedName)) continue;
 
                 ItemDictionary? bestMatch = null;
-                double maxSimilarity = 0.0;
 
-                // TIER 1: So khớp Fuzzy (Tìm kiếm gần đúng) >= 70%
-                foreach (var dictItem in dictionary)
+                // TIER 1: So khớp nguyên từ (Word Boundary)
+                foreach (var dictItem in orderedDictionary)
                 {
-                    double similarity = CalculateSimilarity(normalizedName, dictItem.NormalizedKeyword);
-                    if (similarity > maxSimilarity)
+                    if (string.IsNullOrWhiteSpace(dictItem.NormalizedKeyword)) continue;
+
+                    string pattern = @"\b" + System.Text.RegularExpressions.Regex.Escape(dictItem.NormalizedKeyword) + @"\b";
+                    if (System.Text.RegularExpressions.Regex.IsMatch(normalizedName, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                     {
-                        maxSimilarity = similarity;
                         bestMatch = dictItem;
+                        break; // Khớp từ dài nhất và dừng lại luôn
                     }
                 }
 
-                if (maxSimilarity >= 0.70 && bestMatch != null)
+                if (bestMatch != null)
                 {
-                    // ✅ Khớp chuỗi >= 70% → gán luôn
+                    // Khớp từ khóa gốc thành công → gán danh mục trực tiếp và lưu lại ID để tăng HitCount
                     item.Category = bestMatch.Category;
+                    matchedIds.Add(bestMatch.Id);
                 }
                 else
                 {
-                    // ❓ Chưa biết → thêm vào danh sách chờ hỏi LLM
+                    // Chưa khớp từ khóa nào → Cần gọi LLM trực tiếp để phân loại và trích xuất RootKeyword
                     unresolvedItems.Add(item);
                 }
             }
 
-            // ── BƯỚC 3: Gọi LLM 1 lần duy nhất cho tất cả items chưa biết ────────────
-            if (!unresolvedItems.Any()) return;
+            bool isDbChanged = false;
 
-            var llmResults = await CallLlmToCategorizeBatchAsync(unresolvedItems);
-            if (llmResults == null || !llmResults.Any()) return;
-
-            // ── BƯỚC 4: Map kết quả LLM + Tự học (lưu vào DB) ───────────────────────
-            var newEntries = new List<ItemDictionary>();
-
-            foreach (var unresolved in unresolvedItems)
+            // ── BƯỚC 3: Cập nhật HitCount cho các từ khóa gốc được so khớp thành công ──────
+            if (matchedIds.Any())
             {
-                // Tìm kết quả LLM tương ứng theo index
-                var llmResult = llmResults.FirstOrDefault(r =>
-                    string.Equals(r.ItemName, unresolved.ItemName, StringComparison.OrdinalIgnoreCase));
-
-                var category = llmResult?.Category ?? "Unknown";
-                unresolved.Category = category;
-
-                // Lưu tất cả vào từ điển, bao gồm cả "Unknown" để:
-                // 1. Caching cho lần sau (tiết kiệm gọi LLM)
-                // 2. Cho phép người dùng hoặc Admin vào DB chỉnh sửa lại thủ công (train/học máy)
-                newEntries.Add(new ItemDictionary
+                foreach (var matchedId in matchedIds)
                 {
-                    Keyword = unresolved.ItemName,
-                    NormalizedKeyword = unresolved.ItemName.Trim().ToLowerInvariant(),
-                    Category = category,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    var dbItem = await _unitOfWork.ItemDictionaryRepository.GetByIdAsync(matchedId);
+                    if (dbItem != null)
+                    {
+                        dbItem.HitCount++;
+                        _unitOfWork.ItemDictionaryRepository.Update(dbItem);
+                        isDbChanged = true;
+                    }
+                }
             }
 
-            // Batch insert + lưu DB
-            if (newEntries.Any())
+            // ── BƯỚC 4: Gọi LLM cho các Item chưa được phân loại ──────────────────────
+            if (unresolvedItems.Any())
             {
-                await _unitOfWork.ItemDictionaryRepository.AddRangeAsync(newEntries);
-                await _unitOfWork.Complete();
+                // Loại bỏ các phần tử trùng lặp theo tên chuẩn hóa của item gốc
+                var distinctUnresolvedItems = unresolvedItems
+                    .GroupBy(x => TextNormalizationHelper.NormalizeItemName(x.ItemName))
+                    .Select(g => g.First())
+                    .ToList();
 
-                // Invalidate cache để lần sau load lại từ điển đã có data mới
+                var llmResults = await CallLlmToCategorizeBatchAsync(distinctUnresolvedItems);
+                if (llmResults != null && llmResults.Any())
+                {
+                    var newDictEntries = new List<ItemDictionary>();
+
+                    foreach (var unresolvedItem in distinctUnresolvedItems)
+                    {
+                        var normalizedName = TextNormalizationHelper.NormalizeItemName(unresolvedItem.ItemName);
+                        
+                        var llmResult = llmResults.FirstOrDefault(r =>
+                            string.Equals(TextNormalizationHelper.NormalizeItemName(r.ItemName), normalizedName, StringComparison.OrdinalIgnoreCase));
+
+                        var category = llmResult?.Category ?? "Unknown";
+                        
+                        // Lấy RootKeyword do LLM trích xuất, nếu trống thì fallback về tên gốc
+                        var rawRootKeyword = string.IsNullOrWhiteSpace(llmResult?.RootKeyword) 
+                            ? unresolvedItem.ItemName 
+                            : llmResult.RootKeyword;
+
+                        var normalizedRootKeyword = TextNormalizationHelper.NormalizeItemName(rawRootKeyword);
+                        if (string.IsNullOrWhiteSpace(normalizedRootKeyword))
+                        {
+                            normalizedRootKeyword = normalizedName;
+                        }
+
+                        // Cập nhật category cho các món trong bill hiện tại
+                        foreach (var item in items.Where(i => TextNormalizationHelper.NormalizeItemName(i.ItemName) == normalizedName))
+                        {
+                            item.Category = category;
+                        }
+
+                        // Kiểm tra xem từ khóa gốc này đã tồn tại trong DB hoặc trong danh sách chuẩn bị thêm chưa để tránh chèn trùng
+                        bool isAlreadyInDb = dictionary.Any(d => d.NormalizedKeyword == normalizedRootKeyword) ||
+                                             newDictEntries.Any(e => e.NormalizedKeyword == normalizedRootKeyword);
+
+                        if (!isAlreadyInDb)
+                        {
+                            newDictEntries.Add(new ItemDictionary
+                            {
+                                Keyword = rawRootKeyword,
+                                NormalizedKeyword = normalizedRootKeyword,
+                                Category = category,
+                                HitCount = 1,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+
+                    if (newDictEntries.Any())
+                    {
+                        await _unitOfWork.ItemDictionaryRepository.AddRangeAsync(newDictEntries);
+                        isDbChanged = true;
+                    }
+                }
+            }
+
+            // ── BƯỚC 5: Lưu thay đổi vào DB & Invalidate Cache ────────────────────────
+            if (isDbChanged)
+            {
+                await _unitOfWork.Complete();
                 _cache.Remove(DictionaryCacheKey);
             }
         }
@@ -371,21 +432,31 @@ namespace BLL.Service
             var itemNamesJson = JsonSerializer.Serialize(unresolvedItems.Select(x => x.ItemName).ToList());
 
             var prompt =
-                "Bạn là hệ thống AI phân loại hàng hóa siêu thị và hóa đơn. Nhiệm vụ của bạn là đọc tên món hàng (bằng tiếng Việt) và gán ĐÚNG 1 danh mục bằng TIẾNG ANH.\n" +
+                "Bạn là hệ thống AI phân loại hàng hóa siêu thị và hóa đơn. Nhiệm vụ của bạn là đọc tên món hàng (bằng tiếng Việt), gán ĐÚNG 1 danh mục bằng TIẾNG ANH, và trích xuất một TỪ KHÓA GỐC (RootKeyword) đại diện cho loại mặt hàng đó bằng tiếng Việt.\n" +
                 "DANH SÁCH DANH MỤC ĐƯỢC PHÉP SỬ DỤNG (CHỈ CHỌN 1 TRONG SỐ NÀY):\n" +
-                "- 'Food': Tất cả đồ ăn, thức ăn, gia vị, nông sản. Đã bao gồm: đậu hũ, đường, tương ớt, khoai lang, xà lách, dưa leo, cà rốt, rau thơm, dưa hấu, chuối, chả lụa, thịt, cá, gạo, bánh kẹo, v.v.\n" +
-                "- 'Drink': Tất cả các loại thức uống (nước ngọt, bia, rượu, trà sữa, cà phê, nước ép...)\n" +
+                "- 'Food': Tất cả đồ ăn, thức ăn, gia vị, nông sản, thịt, cá, rau củ...\n" +
+                "- 'Drink': Tất cả các loại thức uống (nước ngọt, bia, rượu, trà sữa...)\n" +
                 "- 'Necessities': Nhu yếu phẩm, đồ dùng sinh hoạt (xà phòng, giấy vệ sinh, nước giặt...)\n" +
                 "- 'Cosmetics': Mỹ phẩm, chăm sóc cơ thể.\n" +
                 "- 'Electronics': Đồ điện, điện tử.\n" +
                 "- 'Clothing': Quần áo, giày dép.\n" +
                 "- 'Stationery': Văn phòng phẩm, sách vở.\n" +
                 "- 'Furniture': Đồ nội thất.\n" +
-                "- 'Unknown': TUYỆT ĐỐI CHỈ DÙNG khi dòng text là vô nghĩa, hoặc là các khoản phí (vd: 'Giảm giá', 'VAT', 'Phí dịch vụ'). KHÔNG dùng cho thực phẩm hay thức uống.\n\n" +
-                "QUY TẮC CỐT LÕI:\n" +
-                "1. KHÔNG trả về tiếng Việt ở trường Category (Cấm dùng 'Thực phẩm' hay 'Thức uống', bắt buộc dùng 'Food' hoặc 'Drink').\n" +
-                "2. Phải tìm từ khóa chính (vd: 'TƯƠNG ỚT XANH' -> gia vị -> Food, 'KHOAI LANG NHẬT' -> nông sản -> Food, 'COCA COLA' -> Drink). Bỏ qua các ký tự viết tắt hay thương hiệu.\n" +
-                "3. Trả về đúng cấu trúc JSON: { \"items\": [ {\"ItemName\": \"<tên gốc>\", \"Category\": \"<1 danh mục tiếng Anh>\"} ] }\n" +
+                "- 'Unknown': TUYỆT ĐỐI CHỈ DÙNG khi dòng text là vô nghĩa, hoặc là các khoản phí.\n\n" +
+                "QUY TẮC TRÍCH XUẤT TỪ KHÓA GỐC (RootKeyword):\n" +
+                "1. RootKeyword phải là danh từ chung cốt lõi mô tả bản chất của sản phẩm, không chứa thương hiệu, không chứa size/dung tích/định lượng hoặc mô tả chi tiết không cần thiết.\n" +
+                "2. Ví dụ:\n" +
+                "   - 'Lẩu TomYum' -> RootKeyword: 'lẩu'\n" +
+                "   - 'Lẩu Nấm Tapinlu' -> RootKeyword: 'lẩu'\n" +
+                "   - 'Bắp Bò (nhỏ)' -> RootKeyword: 'bắp bò'\n" +
+                "   - 'Gù Bò (nhỏ)' -> RootKeyword: 'gù bò'\n" +
+                "   - 'Rau Muống' -> RootKeyword: 'rau'\n" +
+                "   - 'Nấm Kim Châm' -> RootKeyword: 'nấm'\n" +
+                "   - 'Cá Viên Phô Mai (nhỏ)' -> RootKeyword: 'cá viên'\n" +
+                "   - 'Sữa chua Vinamilk 100g' -> RootKeyword: 'sữa chua'\n" +
+                "   - 'Nước xốt mè rang Kewpie' -> RootKeyword: 'nước xốt'\n" +
+                "   - 'Giày thể thao Adidas' -> RootKeyword: 'giày'\n" +
+                "3. Trả về đúng cấu trúc JSON: { \"items\": [ {\"ItemName\": \"<tên gốc>\", \"Category\": \"<1 danh mục tiếng Anh>\", \"RootKeyword\": \"<từ khóa gốc tiếng Việt hạ tông viết thường>\"} ] }\n" +
                 "Danh sách mặt hàng đầu vào:\n" + itemNamesJson;
 
             var payload = new
@@ -490,6 +561,7 @@ namespace BLL.Service
         {
             public string ItemName { get; set; } = string.Empty;
             public string Category { get; set; } = string.Empty;
+            public string RootKeyword { get; set; } = string.Empty;
         }
 
         /// <summary>Wrapper JSON object LLM trả về: { "items": [...] }</summary>
