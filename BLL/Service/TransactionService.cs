@@ -239,5 +239,16 @@ namespace BLL.Service
             await _uow.Complete();
             return mapper.Map<TransactionDto>(transaction);
         }
+
+        public async Task<IEnumerable<TransactionDto>> GetUnconfirmedTransactionsByDateAsync(DateTime date)
+        {
+            var transactions = await _uow.TransactionRepository.GetAllAsync();
+            var unconfirmed = transactions
+                .Where(t => t.IsAiEstimated == false
+                            && t.CreatedAt >= date.Date
+                            && !t.IsDeleted)
+                .ToList();
+            return mapper.Map<IEnumerable<TransactionDto>>(unconfirmed);
+        }
     }
 }

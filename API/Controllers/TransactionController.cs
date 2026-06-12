@@ -1,15 +1,19 @@
 using API.Extensions;
 using BLL.Dtos;
 using BLL.Interfaces.IServices;
+using DAL.IRepositories;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
 {
+    
     [Route("[controller]")]
     public class TransactionController(
-        ITransactionService _transactionService
+        ITransactionService _transactionService,
+        IUnitOfWork _uow
     ) : Controller
     {
+        
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<TransactionDto>>
         > GetTransactions()
@@ -81,6 +85,48 @@ namespace API.Controllers
         {
             var deletedTransaction = await _transactionService.DeleteAsync(id);
             return Ok(deletedTransaction);
+        }
+
+        [HttpPut("{transactionId}/confirm-prices")]
+        public async Task<IActionResult> ConfirmPrices(int transactionId, [FromBody] List<BLL.Dtos.UpdateItemPriceDto> itemsDto)        
+        {
+            var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
+            if (transaction == null || transaction.IsDeleted) 
+                return NotFound(new { Message = "Không tìm thấy hóa đơn." });
+
+            decimal newTotalAmount = transaction.TotalAmount; 
+// Lặp qua từng món user gửi lên
+            foreach (var itemDto in itemsDto)
+            {
+                // Lấy trực tiếp từng món đồ lên từ Database thông qua ID của nó
+                // (Sử dụng TransactionDetailRepository để bypass lỗi thiếu Include)
+                var dbItem = await _uow.TransactionDetailRepository.GetByIdAsync(itemDto.DetailId);
+                
+                // Đảm bảo món đồ này có tồn tại và thuộc về đúng cái hóa đơn 
+                if (dbItem != null && dbItem.TransactionId == transactionId)
+                {
+                    // 1. Trừ đi tiền cũ (lỡ có) của món đồ này khỏi tổng tiền
+                    newTotalAmount -= (dbItem.Price * dbItem.Quantity);
+                    
+                    // 2. Gán giá mới bằng giá  gửi lên
+                    dbItem.Price = itemDto.Price;
+                    _uow.TransactionDetailRepository.Update(dbItem);
+                    
+                    // 3. Cộng tiền mới dội ngược lại vào tổng tiền
+                    newTotalAmount += (dbItem.Price * dbItem.Quantity);
+                }
+            }
+
+            // Cập nhật tổng tiền cuối cùng
+            transaction.TotalAmount = newTotalAmount; 
+            
+            // LẬT CỜ
+            transaction.IsAiEstimated = true; 
+
+            _uow.TransactionRepository.Update(transaction);
+            await _uow.Complete();
+
+            return Ok(new { Message = "Xác nhận giá thành công!", TotalAmount = newTotalAmount });
         }
     }
 }

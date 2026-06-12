@@ -3,6 +3,7 @@ using API.Mappings;
 using API.Middlewares;
 using BLL.Interfaces.IServices;
 using BLL.Service;
+using Hangfire;
 
 // using BLL.Interfaces.IServices;
 // using BLL.Service;
@@ -101,6 +102,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddCors();
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
+builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
 var app = builder.Build();
 
@@ -119,6 +128,18 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+app.UseHangfireDashboard(); 
+
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    // Hẹn giờ 20:00 hàng ngày
+    recurringJobManager.AddOrUpdate<IMissingPriceJob>(
+        "remind-missing-price-daily",
+        job => job.ScanAndSendNotificationAsync(),
+        "0 20 * * *" 
+    );
 }
 
 
