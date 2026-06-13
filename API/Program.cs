@@ -111,6 +111,8 @@ builder.Services.AddHangfire(configuration => configuration
 builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
+builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -139,6 +141,12 @@ using (var scope = app.Services.CreateScope())
         "remind-missing-price-daily",
         job => job.ScanAndSendNotificationAsync(),
         "0 20 * * *" 
+    );
+
+    recurringJobManager.AddOrUpdate<IItemReviewJobService>(
+        "remind-item-review-daily",
+        job => job.ScanAndSendNotificationAsync(30),
+        "0 20 * * *"
     );
 }
 
