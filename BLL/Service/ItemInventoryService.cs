@@ -5,6 +5,7 @@ using DAL.IRepositories;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using DAL.Enums;
 
 namespace BLL.Service
 {
@@ -55,5 +56,27 @@ namespace BLL.Service
             return mapper.Map<ItemInventoryDto>(existingEntity);
         }
 
+        public async Task<IEnumerable<ItemInventoryDto>> GetItemsNeedReviewAsync(int days = 30)
+        {
+            var thresholdDate = DateTime.UtcNow.AddDays(-days);
+            var items = await _uow.ItemInventoryRepository.FindAsync(x => !x.IsReviewed && x.CreatedAt <= thresholdDate);
+            return mapper.Map<IEnumerable<ItemInventoryDto>>(items);
+        }
+
+        public async Task<ItemInventoryDto>ReviewItemAsync(int itemInventoryId, UsageStatusType usageStatus)
+        {
+            var item = await _uow.ItemInventoryRepository.GetByIdAsync(itemInventoryId);
+            if (item == null)
+            {
+                throw new KeyNotFoundException("Item inventory not found");
+            }
+            item.UsageStatus = usageStatus;
+            item.IsReviewed = true;
+            item.LastReviewDate = DateTime.UtcNow;
+
+            _uow.ItemInventoryRepository.Update(item);
+            await _uow.Complete();
+            return mapper.Map<ItemInventoryDto>(item);
+        }
     }
 }

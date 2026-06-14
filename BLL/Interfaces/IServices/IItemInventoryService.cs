@@ -4,6 +4,7 @@ using System.Data.SqlTypes;
 using System.Text;
 using System.Threading.Tasks;
 using BLL.Dtos;
+using DAL.Enums;
 
 namespace BLL.Interfaces.IServices
 {
@@ -14,5 +15,7 @@ namespace BLL.Interfaces.IServices
         Task<ItemInventoryDto> CreateAsync(ItemInventoryDto itemInventoryDto);
         Task<ItemInventoryDto> UpdateAsync(int itemInventoryId, ItemInventoryDto itemInventoryDto);
         Task<ItemInventoryDto> DeleteAsync(int itemInventoryId);
+        Task<IEnumerable<ItemInventoryDto>> GetItemsNeedReviewAsync(int days = 30);
+        Task<ItemInventoryDto>ReviewItemAsync(int itemInventoryId, UsageStatusType usageStatus);
     }
 }

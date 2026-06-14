@@ -65,5 +65,19 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpPost("cleanup")]
+        public async Task<ActionResult> CleanupDictionaries([FromQuery] int maxHitCount = 1, [FromQuery] int olderThanDays = 30)
+        {
+            try
+            {
+                var count = await _itemDictionaryService.CleanupAsync(maxHitCount, olderThanDays);
+                return Ok(new { Message = $"Deleted {count} item dictionary entries with hit count <= {maxHitCount} and older than {olderThanDays} days." });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

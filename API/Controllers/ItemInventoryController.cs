@@ -1,6 +1,7 @@
 ﻿using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
+using DAL.Enums;
 
 namespace API.Controllers
 {
@@ -56,6 +57,27 @@ namespace API.Controllers
             try
             {
                 var result = await itemInventoryService.DeleteAsync(id);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("need-review")]
+        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemsNeedReview([FromQuery] int days = 30)
+        {
+            var items = await itemInventoryService.GetItemsNeedReviewAsync(days);
+            return Ok(items);
+        }
+
+        [HttpPut("{id}/review")]
+        public async Task<ActionResult<ItemInventoryDto>> ReviewItem(int id, [FromQuery] UsageStatusType usageStatus)
+        {
+            try
+            {
+                var result = await itemInventoryService.ReviewItemAsync(id, usageStatus);
                 return Ok(result);
             }
             catch (Exception ex)

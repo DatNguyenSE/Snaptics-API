@@ -3,12 +3,14 @@ using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
+using DAL.Enums;
 
 namespace BLL.Service
 {
     public class TransactionService(
         IUnitOfWork _uow,
-        IMapper mapper
+        IMapper mapper,
+        IItemDictionaryService _itemDictionaryService
     ) : ITransactionService
     {
         public async Task<IEnumerable<TransactionDto>
@@ -133,8 +135,34 @@ namespace BLL.Service
                 });
             }
 
-            // 7. Lưu tất cả (Transaction và TransactionDetails) bằng 1 lệnh SaveChanges
+            // 7. Lưu Transaction + TransactionDetails
             await _uow.TransactionRepository.AddAsync(transaction);
+            await _uow.Complete();
+
+
+            // 8. Auto create ItemInventory cho category được tracking
+            foreach (var detail in transaction.TransactionDetails)
+            {
+                var category = await _uow.CategoryRepository
+                    .GetByIdAsync(detail.CategoryId);
+
+                if (category != null && category.IsTrackableInventory)
+                {
+                    var inventory = new ItemInventory
+                    {
+                        UserId = transaction.UserId,
+                        TransactionDetailId = detail.Id,
+                        UsageStatus = UsageStatusType.Frequent,
+                        IsReviewed = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _uow.ItemInventoryRepository
+                        .AddAsync(inventory);
+                }
+            }
+
+            // Save ItemInventory
             await _uow.Complete();
 
             return mapper.Map<TransactionDto>(transaction);
@@ -170,6 +198,16 @@ namespace BLL.Service
                 _uow.TransactionRepository.Update(transaction);
                 await _uow.Complete();
                 transactionDto.IsAiEstimated = false;
+            }
+
+            // Gọi hàm học hỏi từ user feedback
+            try
+            {
+                await _itemDictionaryService.LearnFromUserFeedbackAsync(billDto.Items);
+            }
+            catch
+            {
+                // Không block luồng chính lưu hóa đơn
             }
 
             return transactionDto;
@@ -208,6 +246,26 @@ namespace BLL.Service
                 _uow.TransactionRepository.Update(transaction);
                 await _uow.Complete();
                 transactionDto.IsAiEstimated = true;
+            }
+
+            // Gọi hàm học hỏi từ user feedback
+            try
+            {
+                var feedbackItems = new List<BLL.Dtos.AiDto.BillItemDto>
+                {
+                    new BLL.Dtos.AiDto.BillItemDto
+                    {
+                        ItemName = imageDto.ItemName,
+                        Category = imageDto.Category,
+                        Quantity = imageDto.Quantity,
+                        Price = imageDto.EstimatedPriceVND
+                    }
+                };
+                await _itemDictionaryService.LearnFromUserFeedbackAsync(feedbackItems);
+            }
+            catch
+            {
+                // Không block luồng chính lưu hóa đơn
             }
 
             return transactionDto;
