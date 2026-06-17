@@ -16,5 +16,6 @@ namespace BLL.Dtos.AiDto
         public int EstimatedCalories { get; set; }
 
         public long EstimatedPriceVND { get; set; }
+        public string? ImageKey { get; set; } // S3 key của ảnh đã upload
     }
 }
