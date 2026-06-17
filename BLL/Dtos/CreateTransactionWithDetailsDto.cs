@@ -20,5 +20,7 @@ namespace BLL.Dtos
         public decimal Price { get; set; }
         public decimal Quantity { get; set; } = 1;
         public string? Category { get; set; } // The string category from AI
+        public int? EstimatedCalories { get; set; }
+        public string Unit { get; set; } = "cái";
     }
 }
