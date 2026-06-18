@@ -11,5 +11,7 @@ namespace BLL.Interfaces.IServices
         Task<BudgetDto> CreateAsync(BudgetDto budgetDto);
         Task<BudgetDto> UpdateAsync(int id, BudgetDto budgetDto);
         Task<BudgetDto> DeleteAsync(int id);
+
+        Task<IEnumerable<BudgetDto>> GetAwsBudgetsAsync();
     }
 }

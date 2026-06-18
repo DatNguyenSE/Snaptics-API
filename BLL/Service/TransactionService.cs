@@ -239,5 +239,14 @@ namespace BLL.Service
             await _uow.Complete();
             return mapper.Map<TransactionDto>(transaction);
         }
+
+        public async Task<IEnumerable<TransactionDto>> GetByUserIdAsync(string userId)
+        {
+            // 1. Gọi Repo lấy data từ DB
+            var transactions = await _uow.TransactionRepository.GetByUserIdAsync(userId);
+    
+            // 2. Map sang DTO trả về
+            return mapper.Map<IEnumerable<TransactionDto>>(transactions);
+        }
     }
 }

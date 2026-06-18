@@ -82,5 +82,20 @@ namespace API.Controllers
             var deletedTransaction = await _transactionService.DeleteAsync(id);
             return Ok(deletedTransaction);
         }
+
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetUserTransactions()
+        {
+            try
+            {
+                var userId = GetUserId(); 
+                var transactions = await _transactionService.GetByUserIdAsync(userId);               
+                return Ok(transactions);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
