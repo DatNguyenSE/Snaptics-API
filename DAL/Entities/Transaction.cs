@@ -9,7 +9,7 @@ namespace DAL.Entities
         public string? Name { get; set; }
         public string? UserId { get; set; }
         
-        public string? ImageUrl { get; set; }
+        public string? ImageKey { get; set; }
         
         public decimal TotalAmount { get; set; } = 0m;
         

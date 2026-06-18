@@ -6,6 +6,7 @@ namespace BLL.Dtos
     public class CreateTransactionWithDetailsDto
     {
         public string? MerchantName { get; set; }
+        public string? ImageKey { get; set; }
         public required string UserId { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime TransactionDate { get; set; }
