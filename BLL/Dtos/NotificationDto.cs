@@ -10,5 +10,8 @@ namespace BLL.Dtos
         public bool IsRead { get; set; }
         public required string Type { get; set; }
         public DateTime CreatedAt { get; set; }
+        public int? ItemInventoryId { get; set; }
+
+        public int? TransactionDetailId { get; set; }
     }
 }

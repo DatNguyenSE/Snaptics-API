@@ -13,7 +13,9 @@ namespace DAL.Entities
         public bool IsRead { get; set; } = false;
         public string? Type {get; set; } 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public int? ItemInventoryId { get; set; }
 
+        public int? TransactionDetailId { get; set; }
         // Navigation property
         public virtual AppUser AppUser { get; set; }
     }
