@@ -38,6 +38,7 @@ namespace BLL.Service
             return mapper.Map<TransactionDto>(entity);
         }
 
+        //hàm này sẽ tạo Transaction + TransactionDetails + Category (nếu chưa có) + ItemInventory (nếu category được tracking)
         public async Task<TransactionDto> CreateWithDetailsAsync(CreateTransactionWithDetailsDto dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto), "Payload (Hóa đơn) không được để trống.");
@@ -89,6 +90,7 @@ namespace BLL.Service
             {
                 Name = dto.MerchantName ?? "Phân tích từ AI",
                 UserId = dto.UserId,
+                ImageKey = dto.ImageKey,
                 TotalAmount = dto.TotalAmount,
                 TransactionDate = dto.TransactionDate,
                 Note = dto.Note,
@@ -100,7 +102,7 @@ namespace BLL.Service
 
             // 6. Map Details sử dụng Dictionary O(1) để lấy CategoryId
             // Nếu item nào không có category, có thể gán ID của category "Unknown" 
-            // Để an toàn, giả sử ta gán ID cho category mặc định hoặc lấy từ dictionary
+            
             int? defaultUnknownId = categoryDict.ContainsKey("Unknown") ? categoryDict["Unknown"] : null;
 
             foreach (var item in dto.Items)
@@ -131,7 +133,9 @@ namespace BLL.Service
                     ItemName = item.ItemName,
                     Price = item.Price,
                     Quantity = item.Quantity,
-                    CategoryId = categoryId
+                    CategoryId = categoryId,
+                    EstimatedCalories = item.EstimatedCalories,
+                    Unit = item.Unit
                 });
             }
 
@@ -173,24 +177,32 @@ namespace BLL.Service
             if (billDto == null) throw new ArgumentNullException(nameof(billDto));
 
             // Map BillReadResultDto sang CreateTransactionWithDetailsDto
+            var calculatedTotal = billDto.Items.Sum(i => i.Price * i.Quantity);
+            var finalTotal = calculatedTotal > 0 ? calculatedTotal : billDto.TotalAmount;
+
+            //dto(Trans + TransDetail) -> record(Trans + TransDetail + Category(if new) + ItemIventory(if Tracking)
             var dto = new CreateTransactionWithDetailsDto
             {
                 UserId = userId,
                 MerchantName = billDto.MerchantName ?? "Hóa đơn siêu thị",
+                ImageKey = billDto.BillImageKey,
                 TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow,
-                TotalAmount = billDto.TotalAmount,
+                TotalAmount = finalTotal,
+                // insert transation-details from parameter billDto.Items
                 Items = billDto.Items.Select(i => new CreateTransactionDetailItemDto
                 {
                     ItemName = i.ItemName,
                     Price = i.Price,
                     Quantity = i.Quantity,
-                    Category = i.Category
+                    Category = i.Category,
+                    Unit = i.Unit
                 }).ToList()
             };
-
+            // Gọi hàm CreateWithDetailsAsync để tạo Transaction + Details + Category + ItemInventory
             var transactionDto = await CreateWithDetailsAsync(dto);
             
-            // Theo yêu cầu: read-bill thì IsAiEstimated = false
+            // read-bill:  IsAiEstimated = false
+            // kiểm tra xem đã tạo transaction từ hàm CreateWithDetailsAsync chưa 
             var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionDto.Id);
             if (transaction != null)
             {
@@ -221,7 +233,8 @@ namespace BLL.Service
             var dto = new CreateTransactionWithDetailsDto
             {
                 UserId = userId,
-                MerchantName = imageDto.ItemName, // Tên Transaction = itemName
+                MerchantName = imageDto.ItemName, 
+                ImageKey = imageDto.ImageKey,
                 TransactionDate = DateTime.UtcNow,
                 TotalAmount = imageDto.EstimatedPriceVND,
                 Items = new List<CreateTransactionDetailItemDto>
@@ -231,7 +244,9 @@ namespace BLL.Service
                         ItemName = imageDto.ItemName,
                         Price = imageDto.EstimatedPriceVND,
                         Quantity = imageDto.Quantity,
-                        Category = imageDto.Category
+                        Category = imageDto.Category,
+                        EstimatedCalories = imageDto.EstimatedCalories,
+                        Unit = string.IsNullOrWhiteSpace(imageDto.Unit) ? "cái" : imageDto.Unit
                     }
                 }
             };

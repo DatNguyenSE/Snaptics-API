@@ -22,6 +22,8 @@ namespace DAL.Entities
         
         public int? EstimatedCalories { get; set; }
 
+        public string Unit { get; set; } = "cái";
+
         // Navigation Properties
         public virtual Transaction Transaction { get; set; }
         public virtual Category Category { get; set; }

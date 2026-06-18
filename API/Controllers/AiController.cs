@@ -12,7 +12,7 @@ namespace API.Controllers
     // [Authorize]
     [Route("ai")]
     [ApiController]
-    public class AiController(IAiService _aiService, ICategoryService _CateService) : ControllerBase
+    public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service) : ControllerBase
     {
         /// <summary>
         /// Tính năng 1: Phân tích ảnh bằng AI.
@@ -41,8 +41,15 @@ namespace API.Controllers
             if (image.Length > 10 * 1024 * 1024)
                 return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
 
-            // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
+            // Bước 3: Upload ảnh lên S3
+            var imageKey = await _s3Service.UploadFileAsync(image, "analyze-images");
+
+            // Bước 4: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
             var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
+
+            // Gắn key ảnh
+            result.ImageKey = imageKey;
+
             return Ok(result);
         }
 
@@ -69,9 +76,15 @@ namespace API.Controllers
             if (billImage.Length > 20 * 1024 * 1024)
                 return BadRequest("Kích thước file không được vượt quá 20MB.");
 
-            // Bước 3: Gửi file qua AiService để dùng Azure nhận diện và bóc tách thông tin
+            // Bước 3: Upload file lên S3
+            var billImageKey = await _s3Service.UploadFileAsync(billImage);
+
+            // Bước 4: Gửi file qua AiService để dùng Azure nhận diện và bóc tách thông tin
             var result = await _aiService.ReadBillAsync(billImage);
-           
+
+            // Gắn key vào kết quả
+            result.BillImageKey = billImageKey;
+
             return Ok(result);
         }
     }

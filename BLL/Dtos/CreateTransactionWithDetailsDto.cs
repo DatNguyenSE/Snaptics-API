@@ -6,6 +6,7 @@ namespace BLL.Dtos
     public class CreateTransactionWithDetailsDto
     {
         public string? MerchantName { get; set; }
+        public string? ImageKey { get; set; }
         public required string UserId { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime TransactionDate { get; set; }
@@ -20,5 +21,7 @@ namespace BLL.Dtos
         public decimal Price { get; set; }
         public decimal Quantity { get; set; } = 1;
         public string? Category { get; set; } // The string category from AI
+        public int? EstimatedCalories { get; set; }
+        public string Unit { get; set; } = "cái";
     }
 }

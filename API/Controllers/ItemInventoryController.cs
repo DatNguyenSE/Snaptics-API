@@ -6,7 +6,7 @@ using DAL.Enums;
 namespace API.Controllers
 {
     [Route("[controller]")]
-    public class ItemInventoryController(IItemInventoryService itemInventoryService) : Controller
+    public class ItemInventoryController(IItemInventoryService itemInventoryService, IItemReviewJobService itemReviewJobService) : Controller
     {
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemInventories()
@@ -84,6 +84,16 @@ namespace API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpPost("test-trigger-item-review-scan")]
+        public async Task<IActionResult> TestTriggerItemReviewScan([FromQuery] int days = 1)
+        {
+            await itemReviewJobService.ScanAndSendNotificationAsync(days);
+            return Ok(new
+            {
+                Message = $"Item review scan completed for {days} day(s)."
+            });
         }
     }
 }
