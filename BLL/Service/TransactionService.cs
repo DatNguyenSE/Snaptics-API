@@ -131,7 +131,9 @@ namespace BLL.Service
                     ItemName = item.ItemName,
                     Price = item.Price,
                     Quantity = item.Quantity,
-                    CategoryId = categoryId
+                    CategoryId = categoryId,
+                    EstimatedCalories = item.EstimatedCalories,
+                    Unit = item.Unit
                 });
             }
 
@@ -173,18 +175,22 @@ namespace BLL.Service
             if (billDto == null) throw new ArgumentNullException(nameof(billDto));
 
             // Map BillReadResultDto sang CreateTransactionWithDetailsDto
+            var calculatedTotal = billDto.Items.Sum(i => i.Price * i.Quantity);
+            var finalTotal = calculatedTotal > 0 ? calculatedTotal : billDto.TotalAmount;
+
             var dto = new CreateTransactionWithDetailsDto
             {
                 UserId = userId,
                 MerchantName = billDto.MerchantName ?? "Hóa đơn siêu thị",
                 TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow,
-                TotalAmount = billDto.TotalAmount,
+                TotalAmount = finalTotal,
                 Items = billDto.Items.Select(i => new CreateTransactionDetailItemDto
                 {
                     ItemName = i.ItemName,
                     Price = i.Price,
                     Quantity = i.Quantity,
-                    Category = i.Category
+                    Category = i.Category,
+                    Unit = i.Unit
                 }).ToList()
             };
 
@@ -231,7 +237,9 @@ namespace BLL.Service
                         ItemName = imageDto.ItemName,
                         Price = imageDto.EstimatedPriceVND,
                         Quantity = imageDto.Quantity,
-                        Category = imageDto.Category
+                        Category = imageDto.Category,
+                        EstimatedCalories = imageDto.EstimatedCalories,
+                        Unit = string.IsNullOrWhiteSpace(imageDto.Unit) ? "cái" : imageDto.Unit
                     }
                 }
             };

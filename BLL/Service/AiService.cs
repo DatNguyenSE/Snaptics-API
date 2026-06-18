@@ -41,10 +41,10 @@ namespace BLL.Service
             "Hãy phân tích hình ảnh này để xác định đây là món đồ hay thực phẩm gì. " +
             "CHÚ Ý CỰC KỲ QUAN TRỌNG: BẠN PHẢI QUAN SÁT KỸ VÀ ĐẾM CHÍNH XÁC SỐ LƯỢNG VẬT THỂ CÙNG LOẠI XUẤT HIỆN TRONG ẢNH. " +
             "Ví dụ 1: Nếu thấy 2 ly trà sữa, itemName là 'Trà sữa (2 ly)', quantity là 2, category là 'Drink', estimatedCalories là tổng calo của 2 ly, estimatedPriceVND là tổng giá 2 ly. " +
-            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng (1 cái)', quantity là 1, category là 'Furniture', estimatedCalories là 0, estimatedPriceVND là giá thị trường ước tính của 1 cái ghế đó. " +
+            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng', quantity là 1, unit là 'cái', category là 'Furniture', estimatedCalories là 0, estimatedPriceVND là giá thị trường ước tính của 1 cái ghế đó. " +
             "Quy tắc phân loại (category): Phân loại càng cụ thể càng tốt bằng TIẾNG ANH (ví dụ: Food, Drink, Furniture, Electronics, Clothing, Stationery, Cosmetics, Necessities, v.v.). 'Drink' dành riêng cho thức uống. Nếu không thể xác định, BẮT BUỘC để category là 'Unknown'. Không trả về chuỗi chung chung như 'Food/Object'. " +
             "Trả về cho tôi một chuỗi JSON chuẩn có cấu trúc: " +
-            "{ \"itemName\": \"\", \"quantity\": <điền số lượng đếm được>, \"category\": \"\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
+            "{ \"itemName\": \"\", \"quantity\": <điền số lượng đếm được>, \"unit\": \"<đơn vị tính: ly, cái, hộp, phần, chai...>\", \"category\": \"\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
             "Chỉ trả về JSON, không giải thích gì thêm. Không bọc kết quả trong markdown (như ```json ).";
 
         public AiService(IHttpClientFactory httpClientFactory, IConfiguration config,
@@ -90,10 +90,14 @@ namespace BLL.Service
 
             promptBuilder.Append("1. TÊN VẬT THỂ (itemName):\n");
             promptBuilder.Append("   - BẮT BUỘC viết bằng TIẾNG VIỆT có dấu.\n");
-            promptBuilder.Append("   - Hãy quan sát kỹ nhãn hiệu, logo, bao bì, chữ viết xuất hiện trong ảnh để lấy tên chi tiết nhất có thể (Ví dụ: 'Ly cà phê Catinat', 'Bánh mì sandwich Kinh Đô', 'Lon Coca-Cola 320ml', 'Ốp lưng iPhone silicon màu đỏ' thay vì gọi chung chung là 'Cà phê', 'Bánh mì', 'Nước ngọt', 'Ốp lưng').\n");
-            promptBuilder.Append("   - BẮT BUỘC đếm chính xác số lượng vật thể cùng loại xuất hiện trong ảnh và ghi rõ định lượng ở tên nếu có.\n\n");
+            promptBuilder.Append("   - Hãy quan sát kỹ nhãn hiệu, logo, bao bì, chữ viết xuất hiện trong ảnh để lấy tên chi tiết nhất có thể (Ví dụ: 'Trà sữa Catinat', 'Bánh mì sandwich Kinh Đô', 'Coca-Cola', 'Ốp lưng iPhone silicon màu đỏ' thay vì gọi chung chung là 'Cà phê', 'Bánh mì', 'Nước ngọt', 'Ốp lưng').\n");
+            promptBuilder.Append("   - KHÔNG gộp số lượng và đơn vị vào tên vật thể (itemName) (Ví dụ: itemName là 'Trà sữa', KHÔNG ghi '2 ly trà sữa').\n\n");
 
-            promptBuilder.Append("2. DANH MỤC (category):\n");
+            promptBuilder.Append("2. ĐƠN VỊ TÍNH VÀ SỐ LƯỢNG:\n");
+            promptBuilder.Append("   - Đếm chính xác số lượng (quantity) của vật thể.\n");
+            promptBuilder.Append("   - BẮT BUỘC cung cấp đơn vị tính (unit) như: 'ly', 'cái', 'tô', 'phần', 'hộp', 'chai', 'lon', v.v. Nếu không rõ, hãy để 'cái'.\n\n");
+
+            promptBuilder.Append("3. DANH MỤC (category):\n");
             promptBuilder.Append("   - BẮT BUỘC dùng TIẾNG ANH.\n");
             promptBuilder.Append("   - Hãy phân loại danh mục một cách linh hoạt, chính xác và cụ thể nhất dựa trên đặc tính của vật thể (Ví dụ: 'Food', 'Drink', 'Apparel', 'Electronics', 'Books', 'Toys', 'Kitchenware', 'Vehicle', 'Cosmetics', 'Necessities', v.v. — KHÔNG BỊ GIỚI HẠN trong một danh sách cố định).\n");
             promptBuilder.Append("   - Chỉ sử dụng 'Unknown' khi vật thể thực sự không thể nhận diện được (bị che khuất, quá mờ hoặc hoàn toàn không có thông tin).\n\n");
@@ -117,6 +121,7 @@ namespace BLL.Service
             promptBuilder.Append("Trả về duy nhất một chuỗi JSON chuẩn có cấu trúc: {\n");
             promptBuilder.Append("  \"itemName\": \"\",\n");
             promptBuilder.Append("  \"quantity\": <số lượng vật thể đếm được (decimal/int)>,\n");
+            promptBuilder.Append("  \"unit\": \"<đơn vị tính>\",\n");
             promptBuilder.Append("  \"category\": \"\"");
             if (trackCalories) promptBuilder.Append(",\n  \"estimatedCalories\": <tổng calo ước tính (int)>");
             if (estimatePrice) promptBuilder.Append(",\n  \"estimatedPriceVND\": <tổng giá trị ước tính VND (long)>");
@@ -190,7 +195,8 @@ namespace BLL.Service
                     Category = result.Category,
                     Quantity = result.Quantity,
                     EstimatedCalories = result.EstimatedCalories,
-                    EstimatedPriceVND = result.EstimatedPriceVND
+                    EstimatedPriceVND = result.EstimatedPriceVND,
+                    Unit = result.Unit
                 };
             }
             catch (JsonException ex)
@@ -241,11 +247,21 @@ namespace BLL.Service
                 if (receipt.Fields.TryGetValue("MerchantName", out var merchantField))
                     billResult.MerchantName = merchantField.Content;
 
-                // Transaction Date — dùng .FieldType trên DocumentField (không phải .Value.ValueType)
+                // Transaction Date and Time
                 if (receipt.Fields.TryGetValue("TransactionDate", out var dateField)
                     && dateField.FieldType == DocumentFieldType.Date)
-                    billResult.TransactionDate = dateField.Value.AsDate().DateTime;
-
+                {
+                    var transactionDate = dateField.Value.AsDate().DateTime;
+                    
+                    if (receipt.Fields.TryGetValue("TransactionTime", out var timeField)
+                        && timeField.FieldType == DocumentFieldType.Time)
+                    {
+                        var transactionTime = timeField.Value.AsTime();
+                        transactionDate = transactionDate.Add(transactionTime);
+                    }
+                    
+                    billResult.TransactionDate = transactionDate;
+                }
                 // Total Amount
                 if (receipt.Fields.TryGetValue("Total", out var totalField)
                     && totalField.FieldType == DocumentFieldType.Double)
@@ -281,6 +297,13 @@ namespace BLL.Service
                             bool isParsed = false;
                             if (!string.IsNullOrWhiteSpace(qtyField.Content))
                             {
+                                // Tìm Unit từ string (vd: "1.344 kg" -> "kg")
+                                var textPart = new string(qtyField.Content.Where(char.IsLetter).ToArray()).ToLower();
+                                if (!string.IsNullOrWhiteSpace(textPart))
+                                {
+                                    billItem.Unit = textPart;
+                                }
+
                                 // Lọc chỉ lấy số, dấu chấm và phẩy từ chuỗi (vd: "1.344 kg" -> "1.344")
                                 var numericStr = new string(qtyField.Content.Where(c => char.IsDigit(c) || c == '.' || c == ',').ToArray());
                                 numericStr = numericStr.Replace(',', '.'); // Quy chuẩn về dấu chấm thập phân
@@ -303,6 +326,31 @@ namespace BLL.Service
                             && priceField.FieldType == DocumentFieldType.Double)
                             billItem.Price = (decimal)priceField.Value.AsDouble();
 
+                        // Tự động suy luận Unit nếu chưa có hoặc bằng "cái"
+                        if (string.IsNullOrWhiteSpace(billItem.Unit) || billItem.Unit == "cái")
+                        {
+                            if (billItem.Quantity % 1 != 0) // Là số thập phân
+                            {
+                                billItem.Unit = "kg";
+                            }
+                            else if (!string.IsNullOrWhiteSpace(billItem.ItemName))
+                            {
+                                // Thử tìm trong tên
+                                var lowerName = billItem.ItemName.ToLower();
+                                string[] commonUnits = { "hộp", "chai", "gói", "lốc", "thùng", "cây", "lon", "bình", "cuộn", "bịch", "vỉ", "lọ", "tuýp" };
+                                foreach (var u in commonUnits)
+                                {
+                                    // Kiểm tra xem từ đó có phải là một từ độc lập trong chuỗi không
+                                    string pattern = @"\b" + System.Text.RegularExpressions.Regex.Escape(u) + @"\b";
+                                    if (System.Text.RegularExpressions.Regex.IsMatch(lowerName, pattern))
+                                    {
+                                        billItem.Unit = u;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
                         if (!string.IsNullOrWhiteSpace(billItem.ItemName))
                             billResult.Items.Add(billItem);
                     }
@@ -314,6 +362,13 @@ namespace BLL.Service
             if (billResult.Items.Count > 0)
             {
                 await EnrichItemCategoriesAsync(billResult.Items);
+                
+                // Cập nhật lại tổng tiền nếu có các item được đọc ra
+                var calculatedTotal = billResult.Items.Sum(i => i.Price * i.Quantity);
+                if (calculatedTotal > 0)
+                {
+                    billResult.TotalAmount = calculatedTotal;
+                }
             }
 
             return billResult;
@@ -621,6 +676,7 @@ namespace BLL.Service
             public string ItemName { get; set; } = string.Empty;
             public string Category { get; set; } = string.Empty;
             public decimal Quantity { get; set; } = 1;
+            public string Unit { get; set; } = string.Empty;
             public int EstimatedCalories { get; set; }
             public long EstimatedPriceVND { get; set; }
         }

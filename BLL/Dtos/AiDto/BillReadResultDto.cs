@@ -31,5 +31,7 @@ namespace BLL.Dtos.AiDto
 
         /// <summary>Category được gán sau khi phân loại: "Food", "Object", hoặc null nếu chưa xử lý</summary>
         public string? Category { get; set; }
+
+        public string Unit { get; set; } = "cái";
     }
 }
