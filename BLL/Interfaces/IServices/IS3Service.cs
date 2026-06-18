@@ -8,7 +8,7 @@ namespace BLL.Interfaces.IServices
     public interface IS3Service
     {
         //tải lên s3 trong thư mục mặc định "bills" or "analyze-images" , trả về key 
-        Task<string> UploadFileAsync(IFormFile file, string folder = "bills");
+        Task<string> UploadFileAsync(IFormFile file, string customerName, string folder = "bills");
         //tạo url tạm thời để xem từ 'key' file đã tải lên, mặc định hết hạn sau 15 phút
         Task<string> GeneratePresignedUrlAsync(string key, int expiryMinutes = 15);
     }

@@ -13,7 +13,7 @@ namespace API.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("File is required");
 
-            var url = await _s3Service.UploadFileAsync(file);
+            var url = await _s3Service.UploadFileAsync(file, file.FileName);
 
             return Ok(new
             {
