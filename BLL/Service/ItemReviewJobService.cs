@@ -1,6 +1,7 @@
 ﻿using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
+using DAL.Enums;
 
 namespace BLL.Service
 {
@@ -31,7 +32,7 @@ namespace BLL.Service
                     UserId = user.UserId,
                     Message =$"Bạn có {user.Count} món đồ cần review lại.",
                     IsRead = false,
-                    Type = "Item_Review",
+                    Type = NotificationType.UsageReview,
                     CreatedAt = DateTime.UtcNow
                 });
             }
