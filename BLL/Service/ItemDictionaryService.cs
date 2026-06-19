@@ -15,7 +15,6 @@ namespace BLL.Service
             var items = await _uow.ItemDictionaryRepository.GetAllAsync();
             return _mapper.Map<IEnumerable<ItemDictionaryDto>>(items);
         }
-
         public async Task<ItemDictionaryDto> GetByIdAsync(int id)
         {
             var item = await _uow.ItemDictionaryRepository.GetByIdAsync(id);
@@ -74,5 +73,6 @@ namespace BLL.Service
             await _uow.Complete();
             return _mapper.Map<ItemDictionaryDto>(existingEntity);
         }
+        
     }
 }

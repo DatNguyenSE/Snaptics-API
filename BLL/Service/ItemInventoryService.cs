@@ -16,6 +16,12 @@ namespace BLL.Service
             return mapper.Map<IEnumerable<ItemInventoryDto>>(itemInventories);
         }
 
+        public async Task<IEnumerable<ItemInventoryDto>> GetByUserIdAsync(string userId)
+        {
+            var itemInventories = await _uow.ItemInventoryRepository.GetByUserIdAsync(userId);
+            return mapper.Map<IEnumerable<ItemInventoryDto>>(itemInventories);
+        }
+
         public async Task<ItemInventoryDto> GetByIdAsync(int id)
         {
             var itemInventory = await _uow.ItemInventoryRepository.GetByIdAsync(id);
