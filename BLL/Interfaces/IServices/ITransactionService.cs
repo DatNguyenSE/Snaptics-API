@@ -17,5 +17,7 @@ namespace BLL.Interfaces.IServices
 
         Task<TransactionDto> DeleteAsync(int transactionId);
         Task<IEnumerable<TransactionDto>> GetUnconfirmedTransactionsByDateAsync(DateTime date);
+
+        Task<IEnumerable<TransactionDto>> GetByUserIdAsync(string userId);
     }
 }

@@ -6,6 +6,8 @@ using DAL.Entities;
 using DAL.IRepositories;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore; 
+using System.Linq;
 
 namespace DAL.Repositories
 {
@@ -19,6 +21,11 @@ namespace DAL.Repositories
         public override async Task<Transaction?> GetByIdAsync(int id)
         {
             return await _dbSet.Include(t => t.TransactionDetails).FirstOrDefaultAsync(t => t.Id == id);
+        
         }
+    public async Task<IEnumerable<DAL.Entities.Transaction>> GetByUserIdAsync(string userId)
+        {
+            return await _dbSet.Where(x => x.UserId == userId).ToListAsync();
+            }
     }
 }

@@ -44,11 +44,11 @@ namespace BLL.Service
             if (dto == null) throw new ArgumentNullException(nameof(dto), "Payload (Hóa đơn) không được để trống.");
             if (dto.Items == null) dto.Items = new List<CreateTransactionDetailItemDto>();
 
-            // 1. Gom tất cả CategoryName thành mảng duy nhất, loại bỏ null/empty
+            // 1. Gom tất cả CategoryName thành mảng duy nhất, loại bỏ null/empty và giá trị "string"
             var categoryNames = dto.Items
                 .Where(i => i != null)
                 .Select(i => i.Category)
-                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Where(c => !string.IsNullOrWhiteSpace(c) && !c.Trim().Equals("string", StringComparison.OrdinalIgnoreCase))
                 .Select(c => c!)
                 .Distinct()
                 .ToList();
@@ -110,7 +110,9 @@ namespace BLL.Service
                 if (item == null) continue;
 
                 int categoryId = 0;
-                if (!string.IsNullOrWhiteSpace(item.Category) && categoryDict.TryGetValue(item.Category, out var id))
+                bool isValidCategory = !string.IsNullOrWhiteSpace(item.Category) && !item.Category.Trim().Equals("string", StringComparison.OrdinalIgnoreCase);
+
+                if (isValidCategory && categoryDict.TryGetValue(item.Category, out var id))
                 {
                     categoryId = id;
                 }
@@ -323,5 +325,15 @@ namespace BLL.Service
                 .ToList();
             return mapper.Map<IEnumerable<TransactionDto>>(unconfirmed);
         }
+
+        public async Task<IEnumerable<TransactionDto>> GetByUserIdAsync(string userId)
+        {
+            // 1. Gọi Repo lấy data từ DB
+            var transactions = await _uow.TransactionRepository.GetByUserIdAsync(userId);
+    
+            // 2. Map sang DTO trả về
+            return mapper.Map<IEnumerable<TransactionDto>>(transactions);
+        }
+
     }
 }

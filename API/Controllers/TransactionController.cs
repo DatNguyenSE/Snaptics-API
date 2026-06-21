@@ -59,6 +59,11 @@ namespace API.Controllers
         [HttpPost("from-bill")]
         public async Task<ActionResult<TransactionDto>> CreateFromBill([FromBody] BLL.Dtos.AiDto.BillReadResultDto billDto)
         {   
+            if (string.IsNullOrWhiteSpace(billDto.MerchantName) || billDto.Items == null || !billDto.Items.Any())
+            {
+                return BadRequest("merchantName và Item không được để trống.");
+            }
+
             // var userId =User.GetUserId(); 
             var userId = GetUserId();
             var transaction = await _transactionService.CreateFromBillAsync(userId, billDto);
@@ -68,6 +73,11 @@ namespace API.Controllers
         [HttpPost("from-analyze")]
         public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromBody] BLL.Dtos.AiDto.AnalyzeImageResponseDto imageDto)
         {   
+            if (string.IsNullOrWhiteSpace(imageDto.ItemName))
+            {
+                return BadRequest("itemName không được để trống.");
+            }
+
             // var userId =User.GetUserId(); 
             var userId = GetUserId();
             var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto);
@@ -140,6 +150,21 @@ namespace API.Controllers
             { 
                 Message = "Manual trigger for missing price scan executed successfully." 
             });
+
+        }
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetUserTransactions()
+        {
+            try
+            {
+                var userId = GetUserId(); 
+                var transactions = await _transactionService.GetByUserIdAsync(userId);               
+                return Ok(transactions);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

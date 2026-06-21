@@ -7,6 +7,7 @@ namespace BLL.Interfaces.IServices
     public interface INotificationService
     {
         Task<IEnumerable<NotificationDto>> GetAllAsync();
+        Task<IEnumerable<NotificationDto>> GetByUserIdAsync(string userId);
         Task<NotificationDto> GetByIdAsync(int id);
         Task<NotificationDto> CreateAsync(NotificationDto notificationDto);
         Task<NotificationDto> UpdateAsync(int id, NotificationDto notificationDto);
