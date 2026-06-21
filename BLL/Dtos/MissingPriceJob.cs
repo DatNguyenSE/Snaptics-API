@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DAL.Enums;
 
 namespace BLL.Service
 {
@@ -46,7 +47,7 @@ namespace BLL.Service
                     UserId = report.UserId,
                     Message = $"Bạn có {report.MissingPriceCount} hóa đơn chưa cập nhật giá hôm nay. Nhấn vào đây để xem và xác nhận nhé!",
                     IsRead = false,
-                    Type = "System_Reminder",
+                    Type = NotificationType.MissingInfo,
                     CreatedAt = DateTime.UtcNow
                 });
             }
