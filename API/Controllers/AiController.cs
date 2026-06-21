@@ -12,7 +12,7 @@ namespace API.Controllers
     // [Authorize]
     [Route("ai")]
     [ApiController]
-    public class AiController(IAiService _aiService, ICategoryService _CateService) : ControllerBase
+    public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service) : ControllerBase
     {
         /// <summary>
         /// Tính năng 1: Phân tích ảnh bằng AI.
@@ -28,7 +28,10 @@ namespace API.Controllers
         [ProducesResponseType(typeof(AnalyzeImageResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<AnalyzeImageResponseDto>> AnalyzeImage(IFormFile image)
+        public async Task<ActionResult<AnalyzeImageResponseDto>> AnalyzeImage(
+            IFormFile image,
+            [FromQuery] bool trackCalories = true,
+            [FromQuery] bool estimatePrice = true)
         {
             // Bước 1: Validate đầu vào, đảm bảo có file và không trống
             if (image == null || image.Length == 0)
@@ -39,7 +42,14 @@ namespace API.Controllers
                 return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
 
             // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
-            var result = await _aiService.AnalyzeImageAsync(image);
+            var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
+
+            // Bước 4: Upload ảnh lên S3 
+            var imageKey = await _s3Service.UploadFileAsync(image, result.ItemName, "analyze-images");
+
+            // Gắn key ảnh
+            result.ImageKey = imageKey;
+
             return Ok(result);
         }
 
@@ -68,7 +78,13 @@ namespace API.Controllers
 
             // Bước 3: Gửi file qua AiService để dùng Azure nhận diện và bóc tách thông tin
             var result = await _aiService.ReadBillAsync(billImage);
-           
+
+            // Bước 4: Upload file lên S3
+            var billImageKey = await _s3Service.UploadFileAsync(billImage,result.MerchantName,"bills");
+
+            // Gắn key vào kết quả
+            result.BillImageKey = billImageKey;
+
             return Ok(result);
         }
     }

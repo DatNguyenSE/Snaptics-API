@@ -11,5 +11,7 @@ namespace BLL.Interfaces.IServices
         Task<ItemDictionaryDto> CreateAsync(ItemDictionaryDto itemDictionaryDto);
         Task<ItemDictionaryDto> UpdateAsync(int id, ItemDictionaryDto itemDictionaryDto);
         Task<ItemDictionaryDto> DeleteAsync(int id);
+        Task<int> CleanupAsync(int maxHitCount, int olderThanDays);
+        Task LearnFromUserFeedbackAsync(List<BLL.Dtos.AiDto.BillItemDto> confirmedItems);
     }
 }

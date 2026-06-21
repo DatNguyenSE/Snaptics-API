@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using DAL.IRepositories;
 using DAL.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace DAL.Repositories
 {
@@ -13,5 +14,9 @@ namespace DAL.Repositories
         {
 
         }
-}
+        public async Task<IEnumerable<ItemInventory>> GetByUserIdAsync(string userId)
+        {
+            return await _dbSet.Where(x => x.UserId == userId).ToListAsync();
+        }
+    }
 }

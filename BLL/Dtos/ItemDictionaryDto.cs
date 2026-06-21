@@ -8,6 +8,7 @@ namespace BLL.Dtos
         public required string Keyword { get; set; }
         public string NormalizedKeyword { get; set; } = string.Empty;
         public required string Category { get; set; }
+        public int HitCount { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

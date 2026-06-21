@@ -13,6 +13,7 @@ namespace BLL.Dtos.AiDto
         public decimal TotalAmount { get; set; }
 
         public string? Currency { get; set; }
+        public string? BillImageKey { get; set; } // S3 key của ảnh bill đã upload
 
         public List<BillItemDto> Items { get; set; } = new();
     }
@@ -30,5 +31,7 @@ namespace BLL.Dtos.AiDto
 
         /// <summary>Category được gán sau khi phân loại: "Food", "Object", hoặc null nếu chưa xử lý</summary>
         public string? Category { get; set; }
+
+        public string Unit { get; set; } = "cái";
     }
 }

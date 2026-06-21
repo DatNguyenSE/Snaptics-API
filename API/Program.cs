@@ -1,8 +1,11 @@
     using System.Text;
+using Amazon.Budgets;
 using API.Mappings;
 using API.Middlewares;
 using BLL.Interfaces.IServices;
 using BLL.Service;
+using Hangfire;
+using BLL.Configurations;
 
 // using BLL.Interfaces.IServices;
 // using BLL.Service;
@@ -10,6 +13,7 @@ using DAL.Data;
 using DAL.Entities;
 using DAL.IRepositories;
 using DAL.Repositories;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +43,7 @@ builder.Services.AddScoped<IItemInventoryService, ItemInventoryService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IItemDictionaryService, ItemDictionaryService>();
+builder.Services.AddScoped<IS3Service, S3Service>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
@@ -101,7 +106,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddCors();
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHangfireServer();
+builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
+
+builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
+
+builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
+
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddAWSService<IAmazonBudgets>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -119,6 +138,24 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+app.UseHangfireDashboard(); 
+
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    // Hẹn giờ 20:00 hàng ngày
+    recurringJobManager.AddOrUpdate<IMissingPriceJob>(
+        "remind-missing-price-daily",
+        job => job.ScanAndSendNotificationAsync(),
+        "0 20 * * *" 
+    );
+
+    recurringJobManager.AddOrUpdate<IItemReviewJobService>(
+        "remind-item-review-daily",
+        job => job.ScanAndSendNotificationAsync(30),
+        "0 20 * * *"
+    );
 }
 
 
