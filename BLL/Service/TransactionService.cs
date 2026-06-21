@@ -101,9 +101,8 @@ namespace BLL.Service
             };
 
             // 6. Map Details sử dụng Dictionary O(1) để lấy CategoryId
-            // Nếu item nào không có category, có thể gán ID của category "Unknown" 
-            
-            int? defaultUnknownId = categoryDict.ContainsKey("Unknown") ? categoryDict["Unknown"] : null;
+            // Reject any item that does not have a valid category
+
 
             foreach (var item in dto.Items)
             {
@@ -116,18 +115,9 @@ namespace BLL.Service
                 {
                     categoryId = id;
                 }
-                else if (defaultUnknownId.HasValue)
-                {
-                    categoryId = defaultUnknownId.Value;
-                }
                 else
                 {
-                    // Fallback cực đoan: tạo Unknown nếu chưa có
-                    var unknownCat = new Category { Name = "Unknown" };
-                    await _uow.CategoryRepository.AddAsync(unknownCat);
-                    await _uow.Complete();
-                    defaultUnknownId = unknownCat.Id;
-                    categoryId = unknownCat.Id;
+                    throw new ArgumentException($"Sản phẩm '{item.ItemName}' có danh mục không hợp lệ hoặc chưa được phân loại. Vui lòng phân loại tất cả các sản phẩm.");
                 }
 
                 transaction.TransactionDetails.Add(new TransactionDetail

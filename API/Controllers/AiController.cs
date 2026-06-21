@@ -44,11 +44,10 @@ namespace API.Controllers
             // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
             var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
 
-            // Bước 4: Upload ảnh lên S3 
-            var imageKey = await _s3Service.UploadFileAsync(image, result.ItemName, "analyze-images");
-
+            // Bước 4: Upload ảnh lên S3 được chuyển sang TransactionController để tránh rác S3
+            
             // Gắn key ảnh
-            result.ImageKey = imageKey;
+            result.ImageKey = null;
 
             return Ok(result);
         }
@@ -79,11 +78,10 @@ namespace API.Controllers
             // Bước 3: Gửi file qua AiService để dùng Azure nhận diện và bóc tách thông tin
             var result = await _aiService.ReadBillAsync(billImage);
 
-            // Bước 4: Upload file lên S3
-            var billImageKey = await _s3Service.UploadFileAsync(billImage,result.MerchantName,"bills");
-
+            // Bước 4: Upload file lên S3 được chuyển sang TransactionController để tránh rác S3
+            
             // Gắn key vào kết quả
-            result.BillImageKey = billImageKey;
+            result.BillImageKey = null;
 
             return Ok(result);
         }

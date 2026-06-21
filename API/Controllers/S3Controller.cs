@@ -1,4 +1,4 @@
-﻿using BLL.Interfaces.IServices;
+using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -30,6 +30,14 @@ namespace API.Controllers
             {
                 Url = url
             });
+        }
+
+        [HttpGet("image")]
+        public async Task<IActionResult> GetImage([FromQuery] string key)
+        {
+            if (string.IsNullOrEmpty(key)) return BadRequest("Key is required");
+            var url = await _s3Service.GeneratePresignedUrlAsync(key);
+            return Redirect(url);
         }
     }
 }

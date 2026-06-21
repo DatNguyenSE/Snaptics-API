@@ -4,6 +4,7 @@ using BLL.Interfaces.IServices;
 using BLL.Service;
 using DAL.IRepositories;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace API.Controllers
 {
@@ -11,7 +12,8 @@ namespace API.Controllers
     [Route("[controller]")]
     public class TransactionController(
         ITransactionService _transactionService,
-        IUnitOfWork _uow
+        IUnitOfWork _uow,
+        IS3Service _s3Service
     ) : Controller
     {
         
@@ -57,11 +59,22 @@ namespace API.Controllers
         }
 
         [HttpPost("from-bill")]
-        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromBody] BLL.Dtos.AiDto.BillReadResultDto billDto)
+        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromForm] string data, IFormFile? image)
         {   
-            if (string.IsNullOrWhiteSpace(billDto.MerchantName) || billDto.Items == null || !billDto.Items.Any())
+            if (string.IsNullOrWhiteSpace(data))
+            {
+                return BadRequest("Trường 'data' không được để trống.");
+            }
+            var billDto = JsonSerializer.Deserialize<BLL.Dtos.AiDto.BillReadResultDto>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (billDto == null || string.IsNullOrWhiteSpace(billDto.MerchantName) || billDto.Items == null || !billDto.Items.Any())
             {
                 return BadRequest("merchantName và Item không được để trống.");
+            }
+
+            if (image != null)
+            {
+                var billImageKey = await _s3Service.UploadFileAsync(image, billDto.MerchantName, "bills");
+                billDto.BillImageKey = billImageKey;
             }
 
             // var userId =User.GetUserId(); 
@@ -71,11 +84,18 @@ namespace API.Controllers
         }
 
         [HttpPost("from-analyze")]
-        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromBody] BLL.Dtos.AiDto.AnalyzeImageResponseDto imageDto)
+        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromForm] BLL.Dtos.AiDto.AnalyzeImageResponseDto data, IFormFile? image)
         {   
-            if (string.IsNullOrWhiteSpace(imageDto.ItemName))
+            var imageDto = data;
+            if (imageDto == null || string.IsNullOrWhiteSpace(imageDto.ItemName))
             {
                 return BadRequest("itemName không được để trống.");
+            }
+
+            if (image != null)
+            {
+                var imageKey = await _s3Service.UploadFileAsync(image, imageDto.ItemName, "analyze-images");
+                imageDto.ImageKey = imageKey;
             }
 
             // var userId =User.GetUserId(); 
