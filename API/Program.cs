@@ -13,7 +13,6 @@ using DAL.Data;
 using DAL.Entities;
 using DAL.IRepositories;
 using DAL.Repositories;
-using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -118,9 +117,7 @@ builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
-
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
-builder.Services.AddAWSService<IAmazonBudgets>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
