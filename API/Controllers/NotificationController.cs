@@ -85,5 +85,12 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpPost("test-trigger-cleanup")]
+        public async Task<IActionResult> TestTriggerCleanup([FromServices] INotificationCleanupJob cleanupJob)
+        {
+            await cleanupJob.CleanUpOldNotificationsAsync();
+            return Ok("Đã dọn rác thủ công thành công! Hãy vào DB check thử xem còn đúng 10 records không nhé.");
+        }
     }
 }
