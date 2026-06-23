@@ -18,5 +18,14 @@ namespace DAL.Repositories
         {
             return await _dbSet.Where(x => x.UserId == userId).ToListAsync();
         }
+        public async Task<IEnumerable<ItemInventory>>GetItemsNeedReviewWithDetailAsync(DateTime thresholdDate)
+        {
+            return await _dbSet
+                .Include(x => x.TransactionDetail)
+                .Where(x =>
+                    !x.IsReviewed &&
+                    x.CreatedAt <= thresholdDate)
+                .ToListAsync();
+        }
     }
 }
