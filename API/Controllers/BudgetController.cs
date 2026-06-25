@@ -21,12 +21,12 @@ namespace API.Controllers
             try
             {
                 var userId = GetUserId();
-                var budgets = await _budgetService.GetAwsBudgetsAsync();
+                var budgets = await _budgetService.GetByUserIdAsync(userId);
                 return Ok(budgets);
             }
             catch (System.Exception ex)
             {
-                return BadRequest(new { Message = "Lỗi rùi: " + ex.Message });
+                return BadRequest(ex.Message);
             }
         }
         [HttpGet]
@@ -83,20 +83,6 @@ namespace API.Controllers
             catch (System.Exception ex)
             {
                 return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpGet("aws")]
-        public async Task<ActionResult<IEnumerable<BudgetDto>>> GetAwsBudgets()
-        {
-            try
-            {
-                var budgets = await _budgetService.GetAwsBudgetsAsync();
-                return Ok(budgets);
-            }
-            catch (System.Exception ex)
-            {
-                return BadRequest("Lỗi khi lấy data từ AWS: " + ex.Message);
             }
         }
     }

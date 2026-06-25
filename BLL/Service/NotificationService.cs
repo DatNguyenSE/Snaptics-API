@@ -60,5 +60,11 @@ namespace BLL.Service
             var notifications = await _uow.NotificationRepository.GetByUserIdAsync(userId);
             return _mapper.Map<IEnumerable<NotificationDto>>(notifications);
         }
+
+        public async Task CleanUpOldNotificationsAsync()
+        {
+            await _uow.NotificationRepository.CleanUpOldNotificationsAsync();
+            await _uow.Complete();
+        }
     }
 }

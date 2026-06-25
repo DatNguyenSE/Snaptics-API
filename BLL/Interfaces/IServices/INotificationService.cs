@@ -12,5 +12,7 @@ namespace BLL.Interfaces.IServices
         Task<NotificationDto> CreateAsync(NotificationDto notificationDto);
         Task<NotificationDto> UpdateAsync(int id, NotificationDto notificationDto);
         Task<NotificationDto> DeleteAsync(int id);
+        Task CleanUpOldNotificationsAsync();
+       
     }
 }
