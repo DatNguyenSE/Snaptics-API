@@ -4,11 +4,13 @@ using BLL.Interfaces.IServices;
 using BLL.Service;
 using DAL.IRepositories;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+using API.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using BLL.Dtos.AiDto;
 
 namespace API.Controllers
 {
-    
+    [Authorize]
     [Route("[controller]")]
     public class TransactionController(
         ITransactionService _transactionService,
@@ -45,42 +47,32 @@ namespace API.Controllers
         public async Task<ActionResult<TransactionDto>
         > CreateTransaction([FromBody]TransactionDto transactionDto)
         {
+            transactionDto.UserId = User.GetUserId();
             var transaction =
                 await _transactionService.CreateAsync(transactionDto);
                 return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id },transaction);
         }
 
-
-
-        private string GetUserId()
-        {
-            // Tạm thời mock UserID cho quá trình test. Sau này lấy từ JWT: User.FindFirstValue(ClaimTypes.NameIdentifier)
-            return "user-12345-mock-id";
-        }
-
         [HttpPost("from-bill")]
-        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromForm] string data, IFormFile? image)
-        {   
-            if (string.IsNullOrWhiteSpace(data))
-            {
-                return BadRequest("Trường 'data' không được để trống.");
-            }
-            var billDto = JsonSerializer.Deserialize<BLL.Dtos.AiDto.BillReadResultDto>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (billDto == null || string.IsNullOrWhiteSpace(billDto.MerchantName) || billDto.Items == null || !billDto.Items.Any())
+        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromBody] BillReadResultDto billDto)
+        {
+            if (billDto == null ||
+                string.IsNullOrWhiteSpace(billDto.MerchantName) ||
+                billDto.Items == null ||
+                !billDto.Items.Any())
             {
                 return BadRequest("merchantName và Item không được để trống.");
             }
 
-            if (image != null)
-            {
-                var billImageKey = await _s3Service.UploadFileAsync(image, billDto.MerchantName, "bills");
-                billDto.BillImageKey = billImageKey;
-            }
+            var userId = User.GetUserId();
 
-            // var userId =User.GetUserId(); 
-            var userId = GetUserId();
-            var transaction = await _transactionService.CreateFromBillAsync(userId, billDto);
-            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+            var transaction =
+                await _transactionService.CreateFromBillAsync(userId, billDto);
+
+            return CreatedAtAction(
+                nameof(GetTransaction),
+                new { id = transaction.Id },
+                transaction);
         }
 
         [HttpPost("from-analyze")]
@@ -92,14 +84,7 @@ namespace API.Controllers
                 return BadRequest("itemName không được để trống.");
             }
 
-            if (image != null)
-            {
-                var imageKey = await _s3Service.UploadFileAsync(image, imageDto.ItemName, "analyze-images");
-                imageDto.ImageKey = imageKey;
-            }
-
-            // var userId =User.GetUserId(); 
-            var userId = GetUserId();
+            var userId = User.GetUserId(); 
             var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto);
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
@@ -177,7 +162,7 @@ namespace API.Controllers
         {
             try
             {
-                var userId = GetUserId(); 
+                var userId = User.GetUserId(); 
                 var transactions = await _transactionService.GetByUserIdAsync(userId);               
                 return Ok(transactions);
             }

@@ -81,7 +81,9 @@ namespace API.Controllers
             // Bước 4: Upload file lên S3 được chuyển sang TransactionController để tránh rác S3
             
             // Gắn key vào kết quả
-            result.BillImageKey = null;
+            var billImageKey = await _s3Service.UploadFileAsync(billImage, "bill", "bills");
+
+            result.BillImageKey = billImageKey;
 
             return Ok(result);
         }

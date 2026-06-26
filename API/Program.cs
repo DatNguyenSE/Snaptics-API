@@ -43,6 +43,7 @@ builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IItemDictionaryService, ItemDictionaryService>();
 builder.Services.AddScoped<IS3Service, S3Service>();
+builder.Services.AddScoped<IAiAssistantService, AiAssistantService>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
@@ -179,6 +180,8 @@ using (var scope = app.Services.CreateScope())
 
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
