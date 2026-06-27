@@ -1,4 +1,4 @@
-﻿using BLL.Dtos.AiAssistantDto;
+using BLL.Dtos.AiAssistantDto;
 using System.Text;
 
 namespace BLL.AI
@@ -28,6 +28,11 @@ namespace BLL.AI
             prompt.AppendLine($"Số giao dịch: {context.TotalTransactionsThisMonth}");
 
             prompt.AppendLine($"Danh mục chi nhiều nhất: {context.TopSpendingCategory}");
+
+            if (context.AllCategoriesThisMonth.Any())
+            {
+                prompt.AppendLine($"Các danh mục đã chi tiêu: {string.Join(", ", context.AllCategoriesThisMonth)}");
+            }
 
             prompt.AppendLine($"Số món cần review: {context.NeedReviewCount}");
 

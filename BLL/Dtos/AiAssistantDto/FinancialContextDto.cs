@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,6 +11,8 @@ namespace BLL.Dtos.AiAssistantDto
         public int TotalTransactionsThisMonth { get; set; }
 
         public string? TopSpendingCategory { get; set; }
+
+        public List<string> AllCategoriesThisMonth { get; set; } = new();
 
         public decimal BudgetUsagePercent { get; set; }
 

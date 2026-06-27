@@ -1,4 +1,4 @@
-﻿using BLL.AI;
+using BLL.AI;
 using BLL.Dtos.AiAssistantDto;
 using BLL.Interfaces.IServices;
 using DAL.Enums;
@@ -82,6 +82,12 @@ namespace BLL.Service
                 .FirstOrDefault();
 
             context.TopSpendingCategory = topCategory?.Category;
+
+            context.AllCategoriesThisMonth = monthlyTransactions
+                .SelectMany(t => t.TransactionDetails)
+                .Select(td => td.Category.Name)
+                .Distinct()
+                .ToList();
         }
 
         private async Task LoadReviewSummaryAsync(FinancialContextDto context, string userId)
