@@ -59,11 +59,32 @@ namespace API.Controllers
                 // Send email
                 try
                 {
+                    string emailBody = $@"
+<div style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;'>
+    <div style='text-align: center; margin-bottom: 25px;'>
+        <h1 style='color: #2563eb; margin: 0; font-size: 28px; font-weight: 700;'>Snaptics</h1>
+    </div>
+    <div style='color: #334155; font-size: 16px; line-height: 1.6;'>
+        <p style='margin-top: 0;'>Chào bạn,</p>
+        <p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>Snaptics</strong>. Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã xác thực (OTP) dưới đây:</p>
+        <div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;'>
+            <span style='font-size: 36px; font-weight: 700; color: #0f172a; letter-spacing: 8px;'>{otp}</span>
+        </div>
+        <p>Mã này có hiệu lực trong <strong>5 phút</strong>.</p>
+        <p style='color: #ef4444; font-size: 14px;'><i>Lưu ý: Tuyệt đối không chia sẻ mã này với bất kỳ ai để đảm bảo an toàn cho tài khoản của bạn.</i></p>
+    </div>
+    <hr style='border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;' />
+    <div style='text-align: center; color: #64748b; font-size: 13px;'>
+        <p style='margin: 0;'>Nếu bạn không yêu cầu tạo tài khoản, xin vui lòng bỏ qua email này.</p>
+        <p style='margin: 5px 0 0;'>&copy; {DateTime.Now.Year} Snaptics. All rights reserved.</p>
+    </div>
+</div>";
+
                     await mailService.SendEmailAsync(new EmailRequest
                     {
                         ToEmail = newUser.Email,
                         Subject = "Xác thực tài khoản Snaptics",
-                        Body = $"Cảm ơn bạn đã đăng ký! Mã OTP xác thực tài khoản của bạn là: <strong>{otp}</strong>. Mã này có hiệu lực trong 5 phút."
+                        Body = emailBody
                     });
                 }
                 catch (Exception)
@@ -147,11 +168,32 @@ namespace API.Controllers
 
             try
             {
+                string emailBody = $@"
+<div style='font-family: ""Segoe UI"", Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;'>
+    <div style='text-align: center; margin-bottom: 25px;'>
+        <h1 style='color: #2563eb; margin: 0; font-size: 28px; font-weight: 700;'>Snaptics</h1>
+    </div>
+    <div style='color: #334155; font-size: 16px; line-height: 1.6;'>
+        <p style='margin-top: 0;'>Chào bạn,</p>
+        <p>Bạn đã yêu cầu gửi lại mã xác thực (OTP) cho tài khoản <strong>Snaptics</strong>. Vui lòng sử dụng mã dưới đây:</p>
+        <div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;'>
+            <span style='font-size: 36px; font-weight: 700; color: #0f172a; letter-spacing: 8px;'>{otp}</span>
+        </div>
+        <p>Mã này có hiệu lực trong <strong>5 phút</strong>.</p>
+        <p style='color: #ef4444; font-size: 14px;'><i>Lưu ý: Tuyệt đối không chia sẻ mã này với bất kỳ ai để đảm bảo an toàn cho tài khoản của bạn.</i></p>
+    </div>
+    <hr style='border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;' />
+    <div style='text-align: center; color: #64748b; font-size: 13px;'>
+        <p style='margin: 0;'>Nếu bạn không yêu cầu mã này, xin vui lòng bảo mật tài khoản hoặc liên hệ với chúng tôi.</p>
+        <p style='margin: 5px 0 0;'>&copy; {DateTime.Now.Year} Snaptics. All rights reserved.</p>
+    </div>
+</div>";
+
                 await mailService.SendEmailAsync(new EmailRequest
                 {
                     ToEmail = user.Email!,
                     Subject = "Xác thực tài khoản Snaptics",
-                    Body = $"Mã OTP xác thực tài khoản mới của bạn là: <strong>{otp}</strong>. Mã này có hiệu lực trong 5 phút."
+                    Body = emailBody
                 });
             }
             catch (Exception)
