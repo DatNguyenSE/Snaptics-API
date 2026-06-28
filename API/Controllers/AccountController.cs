@@ -18,7 +18,7 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class AccountController(UserManager<AppUser> userManager, ITokenService tokenService, IMailService mailService) : ControllerBase
+    public class AccountController(UserManager<AppUser> userManager, ITokenService tokenService, IMailService mailService, IBudgetService _budgetService) : ControllerBase
     {
         [HttpPost("register")] 
         public async Task<IActionResult> Register(RegisterDto dto)
@@ -42,7 +42,16 @@ namespace API.Controllers
                     return BadRequest(result.Errors);
                 }
                 
-                 await userManager.AddToRoleAsync(newUser, "user");
+                await userManager.AddToRoleAsync(newUser, "user");
+                
+                var userBudget = new BudgetDto
+                {
+                    UserId = newUser.Id,
+                    StartDate = DateTime.Now,
+                    CreatedAt = DateTime.Now,
+                    IsActive = true
+                };
+                await _budgetService.CreateAsync(userBudget);
 
                 // Generate OTP using Identity Token Provider
                 var otp = await userManager.GenerateUserTokenAsync(newUser, TokenOptions.DefaultEmailProvider, "ConfirmEmail");
