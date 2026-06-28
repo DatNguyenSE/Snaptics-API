@@ -1,0 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using BLL.Dtos;
+
+namespace BLL.Interfaces.IServices
+{
+    public interface IDashboardService
+    {
+        Task<DashboardResponseDto> GetDashboardSummaryAsync(string userId, DateTime fromDate, DateTime toDate);
+    }
+}

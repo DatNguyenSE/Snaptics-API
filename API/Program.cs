@@ -117,6 +117,7 @@ builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
 builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
