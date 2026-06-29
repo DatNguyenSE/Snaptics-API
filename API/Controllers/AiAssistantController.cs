@@ -20,5 +20,18 @@ namespace API.Controllers
 
             return Ok(result);
         }
+
+        [HttpPost("insight")]
+        public async Task<IActionResult> TestInsight([FromServices] IAiInsightService aiInsightService)
+        {
+            var userId = User.GetUserId();
+
+            await aiInsightService.GenerateInsightsAsync(userId);
+
+            return Ok(new
+            {
+                Message = "AI insight generated successfully."
+            });
+        }
     }
 }

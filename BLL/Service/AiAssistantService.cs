@@ -56,19 +56,24 @@ namespace BLL.Service
 
             var firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
             var firstDayOfNextMonth = firstDayOfMonth.AddMonths(1);
+            var firstDayOfPreviousMonth = firstDayOfMonth.AddMonths(-1);
 
-            var monthlyTransactions =
-                await _uow.TransactionRepository
-                    .GetCompletedTransactionsWithDetailsAsync(
-                        userId,
-                        firstDayOfMonth,
-                        firstDayOfNextMonth);
+            var monthlyTransactions = await _uow.TransactionRepository.GetCompletedTransactionsWithDetailsAsync(
+                                                userId,
+                                                firstDayOfMonth,
+                                                firstDayOfNextMonth);
 
-            context.TotalSpentThisMonth =
-                monthlyTransactions.Sum(t => t.TotalAmount);
+            var previousMonthTransactions = await _uow.TransactionRepository
+                                                .GetCompletedTransactionsWithDetailsAsync(
+                                                userId,
+                                                firstDayOfPreviousMonth,
+                                                firstDayOfMonth);
 
-            context.TotalTransactionsThisMonth =
-                monthlyTransactions.Count();
+            context.PreviousMonthSpent = previousMonthTransactions.Sum(t => t.TotalAmount);
+
+            context.TotalSpentThisMonth = monthlyTransactions.Sum(t => t.TotalAmount);
+
+            context.TotalTransactionsThisMonth = monthlyTransactions.Count();
 
             var topCategory = monthlyTransactions
                 .SelectMany(t => t.TransactionDetails)
@@ -87,6 +92,34 @@ namespace BLL.Service
                 .SelectMany(t => t.TransactionDetails)
                 .Select(td => td.Category.Name)
                 .Distinct()
+                .ToList();
+
+            var biggestItem = monthlyTransactions
+                .SelectMany(t => t.TransactionDetails)
+                .OrderByDescending(x => x.Price * x.Quantity)
+                .FirstOrDefault();
+
+            if (biggestItem != null)
+            {
+                context.TopSpendingItem = biggestItem.ItemName;
+
+                context.TopSpendingItemAmount =
+                    biggestItem.Price * biggestItem.Quantity;
+            }
+
+            context.CategorySpendings = monthlyTransactions
+                .SelectMany(t => t.TransactionDetails)
+                .GroupBy(td => td.Category.Name)
+                .Select(g => new CategorySpendingDto
+                {CategoryName = g.Key, TotalAmount = g.Sum(x => x.Price * x.Quantity)})
+                .ToList();
+
+            context.TopExpenses = monthlyTransactions
+                .SelectMany(t => t.TransactionDetails)
+                .OrderByDescending(x => x.Price * x.Quantity)
+                .Take(5)
+                .Select(x => new TopExpenseDto
+                {ItemName = x.ItemName, Amount = x.Price * x.Quantity})
                 .ToList();
         }
 

@@ -21,5 +21,15 @@ namespace BLL.Dtos.AiAssistantDto
         public List<string> NeedReviewItems { get; set; } = new();
 
         public int MissingPriceCount { get; set; }
+
+        public string? TopSpendingItem { get; set; }
+
+        public decimal TopSpendingItemAmount { get; set; }
+
+        public decimal PreviousMonthSpent { get; set; }
+
+        public List<CategorySpendingDto> CategorySpendings { get; set; } = new();
+
+        public List<TopExpenseDto> TopExpenses { get; set; } = new();
     }
 }
