@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Amazon.SimpleNotificationService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -123,6 +124,10 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+
+builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
+builder.Services.AddScoped<ISnsService, SnsService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

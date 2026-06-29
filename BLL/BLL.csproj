@@ -9,6 +9,7 @@
     <PackageReference Include="AWSSDK.S3" Version="4.0.25" />
     <PackageReference Include="AWSSDK.Budgets" Version="4.0.10.7" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.4.9" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.3.8" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.8" />
     <PackageReference Include="Azure.AI.FormRecognizer" Version="4.1.0" />

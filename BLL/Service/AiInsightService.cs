@@ -5,10 +5,7 @@ using DAL.IRepositories;
 
 namespace BLL.Service
 {
-    public class AiInsightService(
-        IUnitOfWork _uow,
-        INotificationService _notificationService)
-        : IAiInsightService
+    public class AiInsightService(IUnitOfWork _uow, INotificationService _notificationService, ISnsService _snsService) : IAiInsightService
     {
         public async Task GenerateInsightsAsync(string userId)
         {
@@ -70,15 +67,19 @@ namespace BLL.Service
                 return;
             }
 
+            var message = $"Chi tiêu tháng này tăng {increasePercent:F0}% so với tháng trước.";
             await _notificationService.CreateAsync(
                 new NotificationDto
                 {
                     UserId = userId,
-                    Message =
-                        $"Chi tiêu tháng này tăng {increasePercent:F0}% so với tháng trước.",
+                    Message = message,
                     Type = NotificationType.Other,
                     CreatedAt = DateTime.UtcNow
                 });
+
+            await _snsService.PublishAsync(
+                "Snaptics Spending Alert",
+                message);
         }
 
         private async Task CheckBudgetWarning(string userId)
@@ -116,40 +117,50 @@ namespace BLL.Service
                 if (await HasNotificationTodayAsync(
                         userId,
                         NotificationType.Other,
-                        "ngân sách"))
+                        "vượt ngân sách"))
                 {
                     return;
                 }
+
+                var message = "Bạn đã vượt ngân sách tháng này.";
 
                 await _notificationService.CreateAsync(
                     new NotificationDto
                     {
                         UserId = userId,
-                        Message =
-                            "Bạn đã vượt ngân sách tháng này.",
+                        Message = message,
                         Type = NotificationType.Other,
                         CreatedAt = DateTime.UtcNow
                     });
+
+                await _snsService.PublishAsync(
+                    "Snaptics Budget Warning",
+                    message);
             }
             else if (usagePercent >= 80)
             {
                 if (await HasNotificationTodayAsync(
                         userId,
                         NotificationType.Other,
-                        "ngân sách"))
+                        "sử dụng"))
                 {
                     return;
                 }
+
+                var message = $"Bạn đã sử dụng {usagePercent:F0}% ngân sách tháng này.";
 
                 await _notificationService.CreateAsync(
                     new NotificationDto
                     {
                         UserId = userId,
-                        Message =
-                            $"Bạn đã sử dụng {usagePercent:F0}% ngân sách tháng này.",
+                        Message = message,
                         Type = NotificationType.Other,
                         CreatedAt = DateTime.UtcNow
                     });
+
+                await _snsService.PublishAsync(
+                    "Snaptics Budget Warning",
+                    message);
             }
         }
 
@@ -217,17 +228,16 @@ namespace BLL.Service
                 });
         }
 
-        private async Task<bool> HasNotificationTodayAsync(
-            string userId,
-            NotificationType type,
-            string keyword)
+        private async Task<bool> HasNotificationTodayAsync(string userId, NotificationType type, string keyword)
         {
             var notifications =
                 await _uow.NotificationRepository.GetByUserIdAsync(userId);
 
             return notifications.Any(x =>
                 x.Type == type &&
-                x.Message.Contains(keyword) &&
+                x.Message.Contains(
+                    keyword,
+                    StringComparison.OrdinalIgnoreCase) &&
                 x.CreatedAt.Date == DateTime.UtcNow.Date);
         }
     }
