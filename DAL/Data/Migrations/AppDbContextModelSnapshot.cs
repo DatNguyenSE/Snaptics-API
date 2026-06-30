@@ -214,6 +214,9 @@ namespace DAL.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("HitCount")
+                        .HasColumnType("int");
+
                     b.Property<string>("Keyword")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -292,11 +295,17 @@ namespace DAL.Data.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("ItemInventoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Message")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Type")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int?>("TransactionDetailId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<string>("UserId")
                         .HasColumnType("nvarchar(max)");
@@ -322,7 +331,7 @@ namespace DAL.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("ImageUrl")
+                    b.Property<string>("ImageKey")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsAiEstimated")
@@ -384,6 +393,10 @@ namespace DAL.Data.Migrations
 
                     b.Property<int>("TransactionId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

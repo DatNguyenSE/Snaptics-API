@@ -11,8 +11,15 @@ namespace BLL.Dtos.AiDto
         /// <summary>"Food" hoặc "Object"</summary>
         public string Category { get; set; } = string.Empty;
 
+        public decimal Quantity { get; set; } = 1;
+
         public int EstimatedCalories { get; set; }
 
         public long EstimatedPriceVND { get; set; }
+
+        public string? ImageKey { get; set; } // S3 key của ảnh đã upload
+
+        /// <summary>Đơn vị tính: ly, cái, tô, hộp...</summary>
+        public string Unit { get; set; } = string.Empty;
     }
 }

@@ -14,5 +14,6 @@ namespace BLL.Dtos
         public decimal Quantity { get; set; }
 
         public int? EstimatedCalories { get; set; }
+        public string Unit { get; set; } = "cái";
     }
 }

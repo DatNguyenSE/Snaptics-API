@@ -9,6 +9,26 @@ namespace API.Controllers
     [Route("[controller]")]
     public class BudgetController(IBudgetService _budgetService) : Controller
     {
+        private string GetUserId()
+        {
+            return "user-12345-mock-id";
+        }
+
+        // =========================================================
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<BudgetDto>>> GetUserBudgets()
+        {
+            try
+            {
+                var userId = GetUserId();
+                var budgets = await _budgetService.GetByUserIdAsync(userId);
+                return Ok(budgets);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
         [HttpGet]
         public async Task<ActionResult<IEnumerable<BudgetDto>>> GetBudgets()
         {

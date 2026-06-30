@@ -1,12 +1,33 @@
 ﻿using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
+using DAL.Enums;
 
 namespace API.Controllers
 {
     [Route("[controller]")]
-    public class ItemInventoryController(IItemInventoryService itemInventoryService) : Controller
+    public class ItemInventoryController(IItemInventoryService itemInventoryService, IItemReviewJobService itemReviewJobService) : Controller
     {
+        private string GetUserId()
+        {
+            return "user-12345-mock-id";
+        }
+
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetUserItemInventories()
+        {
+            try
+            {
+                var userId = GetUserId();
+                var itemInventories = await itemInventoryService.GetByUserIdAsync(userId);
+                return Ok(itemInventories);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemInventories()
         {
@@ -62,6 +83,37 @@ namespace API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpGet("need-review")]
+        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemsNeedReview([FromQuery] int days = 30)
+        {
+            var items = await itemInventoryService.GetItemsNeedReviewAsync(days);
+            return Ok(items);
+        }
+
+        [HttpPut("{id}/review")]
+        public async Task<ActionResult<ItemInventoryDto>> ReviewItem(int id, [FromQuery] UsageStatusType usageStatus)
+        {
+            try
+            {
+                var result = await itemInventoryService.ReviewItemAsync(id, usageStatus);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("test-trigger-item-review-scan")]
+        public async Task<IActionResult> TestTriggerItemReviewScan([FromQuery] int days = 1)
+        {
+            await itemReviewJobService.ScanAndSendNotificationAsync(days);
+            return Ok(new
+            {
+                Message = $"Item review scan completed for {days} day(s)."
+            });
         }
     }
 }

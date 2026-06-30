@@ -5,14 +5,26 @@ using DAL.IRepositories;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Amazon.Budgets;
+using Amazon.Budgets.Model;
+using System.Linq;
+using Amazon.Runtime;
+using Amazon;
+using Microsoft.Extensions.Configuration;
 
 namespace BLL.Service
 {
-    public class BudgetService(IUnitOfWork _uow, IMapper _mapper) : IBudgetService
+    public class BudgetService(IUnitOfWork _uow, IMapper _mapper, IConfiguration _config) : IBudgetService
     {
         public async Task<IEnumerable<BudgetDto>> GetAllAsync()
         {
             var budgets = await _uow.BudgetRepository.GetAllAsync();
+            return _mapper.Map<IEnumerable<BudgetDto>>(budgets);
+        }
+
+        public async Task<IEnumerable<BudgetDto>> GetByUserIdAsync(string userId)
+        {
+            var budgets = await _uow.BudgetRepository.GetByUserIdAsync(userId);
             return _mapper.Map<IEnumerable<BudgetDto>>(budgets);
         }
 
