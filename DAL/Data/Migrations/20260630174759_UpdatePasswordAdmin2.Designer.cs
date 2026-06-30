@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630174759_UpdatePasswordAdmin2")]
+    partial class UpdatePasswordAdmin2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -121,9 +124,8 @@ namespace DAL.Data.Migrations
                             Email = "admin@gmail.com",
                             EmailConfirmed = true,
                             LockoutEnabled = false,
-                            NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN",
-                            PasswordHash = "AQAAAAIAAYagAAAAEG401nKwBB5UH/vbQ8uY4S8pBeqM84rMSnuDBJGnX8xK6SVy6A5lHwoxtbfMXf3W9g==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEA1zCUIVaVWFe1e1VFtSqlS188Re/1PhHgqfPgXgC6ZNX5TNllTzJZv7y/cGtjL3Yg==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "STATIC-GUID-SEC-12345",
                             Status = "Active",
