@@ -1,37 +1,39 @@
 ﻿using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
+using DAL.Enums;
 
 namespace BLL.Service
 {
-    public class ItemReviewJobService(
-        IItemInventoryService _itemInventoryService,IUnitOfWork _uow) : IItemReviewJobService
+    public class ItemReviewJobService(IUnitOfWork _uow) : IItemReviewJobService
     {
         public async Task ScanAndSendNotificationAsync(int days = 30)
         {
-            var itemsNeedReview =
-                await _itemInventoryService.GetItemsNeedReviewAsync(days);
+            var thresholdDate = DateTime.UtcNow.AddDays(-days);
+
+            var itemsNeedReview = await _uow.ItemInventoryRepository.GetItemsNeedReviewWithDetailAsync(thresholdDate);
 
             if (!itemsNeedReview.Any())
                 return;
 
-            var groupedUsers = itemsNeedReview.GroupBy(x => x.UserId).Select(g => new
-                {
-                    UserId = g.Key,
-                    Count = g.Count()
-                })
-                .ToList();
+            var notifications = new List<Notification>();
 
-            var notifications =new List<Notification>();
-
-            foreach (var user in groupedUsers)
+            foreach (var item in itemsNeedReview)
             {
                 notifications.Add(new Notification
                 {
-                    UserId = user.UserId,
-                    Message =$"Bạn có {user.Count} món đồ cần review lại.",
+                    UserId = item.UserId,
+
+                    ItemInventoryId = item.Id,
+
+                    TransactionDetailId = item.TransactionDetailId,
+
+                    Message =$"Món {item.TransactionDetail.ItemName} cần đánh giá lại.",
+
                     IsRead = false,
-                    Type = "Item_Review",
+
+                    Type = NotificationType.UsageReview,
+
                     CreatedAt = DateTime.UtcNow
                 });
             }

@@ -54,5 +54,17 @@ namespace BLL.Service
             await _uow.Complete();
             return _mapper.Map<NotificationDto>(existingEntity);
         }
+
+        public async Task<IEnumerable<NotificationDto>> GetByUserIdAsync(string userId)
+        {
+            var notifications = await _uow.NotificationRepository.GetByUserIdAsync(userId);
+            return _mapper.Map<IEnumerable<NotificationDto>>(notifications);
+        }
+
+        public async Task CleanUpOldNotificationsAsync()
+        {
+            await _uow.NotificationRepository.CleanUpOldNotificationsAsync();
+            await _uow.Complete();
+        }
     }
 }

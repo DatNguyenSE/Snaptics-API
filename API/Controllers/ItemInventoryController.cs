@@ -8,6 +8,26 @@ namespace API.Controllers
     [Route("[controller]")]
     public class ItemInventoryController(IItemInventoryService itemInventoryService, IItemReviewJobService itemReviewJobService) : Controller
     {
+        private string GetUserId()
+        {
+            return "user-12345-mock-id";
+        }
+
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetUserItemInventories()
+        {
+            try
+            {
+                var userId = GetUserId();
+                var itemInventories = await itemInventoryService.GetByUserIdAsync(userId);
+                return Ok(itemInventories);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemInventories()
         {

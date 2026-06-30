@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Amazon.S3;
 using Amazon.S3.Model;
+using System.Globalization;
+using System.Text;
 
 namespace BLL.Service
 {
@@ -17,10 +19,15 @@ namespace BLL.Service
         {
             _aws = options.Value;
         }
-        public async Task<string> UploadFileAsync(IFormFile file, string folder = "bills")
+        public async Task<string> UploadFileAsync(IFormFile file, string customerName, string folder = "bills")
         {
             var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
-            var fileName = $"{folder}/{Guid.NewGuid()}_{file.FileName}"; 
+            var extension = Path.GetExtension(file.FileName);
+
+            var safeName = string.IsNullOrWhiteSpace(customerName)? "unknown": RemoveVietnamese(customerName).ToLower().Replace(" ", "");
+
+            var fileName = $"{folder}/{safeName}_{DateTime.Now:dd-MM-yyyy_HH-mm-ss}{extension}";
+
             using var  stream = file.OpenReadStream();
             var request = new PutObjectRequest
             {
@@ -43,6 +50,22 @@ namespace BLL.Service
                 Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)
             };
             return client.GetPreSignedURLAsync(request);
+        }
+
+        public static string RemoveVietnamese(string text)
+        {
+            var normalized = text.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+
+            foreach (var c in normalized)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString().Replace('đ', 'd').Replace('Đ', 'D').Normalize(NormalizationForm.FormC);
         }
     }
 }

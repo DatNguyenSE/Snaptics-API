@@ -9,6 +9,11 @@ namespace API.Controllers
     [Route("[controller]")]
     public class NotificationController(INotificationService _notificationService) : Controller
     {
+        private string GetUserId()
+        {
+            return "user-12345-mock-id";
+        }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<NotificationDto>>> GetNotifications()
         {
@@ -64,6 +69,28 @@ namespace API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<NotificationDto>>> GetUserNotifications()
+        {
+            try
+            {
+                var userId = GetUserId(); 
+                var notifications = await _notificationService.GetByUserIdAsync(userId);
+                return Ok(notifications);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("test-trigger-cleanup")]
+        public async Task<IActionResult> TestTriggerCleanup()
+        {
+            await _notificationService.CleanUpOldNotificationsAsync();
+            return Ok();
         }
     }
 }
