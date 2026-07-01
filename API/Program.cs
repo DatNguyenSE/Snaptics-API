@@ -1,5 +1,7 @@
-    using System.Text;
+using System.Text;
+using Amazon;
 using Amazon.Budgets;
+using Amazon.CloudWatchLogs;
 using API.Mappings;
 using API.Middlewares;
 using BLL.Interfaces.IServices;
@@ -7,6 +9,8 @@ using BLL.Service;
 using API.Hubs;
 using Hangfire;
 using BLL.Configurations;
+using Serilog;
+using Serilog.Sinks.AwsCloudWatch;
 
 // using BLL.Interfaces.IServices;
 // using BLL.Service;
@@ -22,7 +26,37 @@ using Microsoft.OpenApi;
 using Amazon.SimpleNotificationService;
 using BLL.Interfaces;
 
+Serilog.Debugging.SelfLog.Enable(Console.Error);
+// 1. Create builder first so it can load appsettings.json
 var builder = WebApplication.CreateBuilder(args);
+
+// 2. Pull keys from config file (No hardcoding anymore)
+var accessKey = builder.Configuration.GetSection("AWS_CloudWatch")["AccessKey"];
+var secretKey = builder.Configuration.GetSection("AWS_CloudWatch")["SecretKey"];
+var regionString = builder.Configuration.GetSection("AWS_CloudWatch")["Region"] ?? "ap-southeast-1";
+
+// 3. Create connection with AWS
+var awsCredentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+var region = RegionEndpoint.GetBySystemName(regionString); // Automatically resolves "ap-southeast-1"
+var cloudWatchClient = new AmazonCloudWatchLogsClient(awsCredentials, region);
+
+// 4. Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .MinimumLevel.Information() 
+    .WriteTo.Console()
+    .WriteTo.AmazonCloudWatch(
+        logGroup: "/Snaptic/BackendLogs",
+        logStreamPrefix: "API-", 
+        cloudWatchClient: cloudWatchClient)
+    .CreateLogger();
+
+try
+{
+    Log.Information("Đang khởi động hệ thống Snaptic");
+
+    // 5. Force .NET Core to use Serilog
+    builder.Host.UseSerilog();
 
 // Add services to the container.
 
@@ -194,3 +228,12 @@ app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Error occurred while starting the application.");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
