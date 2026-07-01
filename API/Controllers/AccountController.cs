@@ -111,7 +111,7 @@ namespace API.Controllers
 
             if (!user.EmailConfirmed)
             {
-                return BadRequest(new { emailConfirmed = false, message = "Tài khoản chưa được xác thực Email. Vui lòng xác thực trước khi đăng nhập." });
+                return BadRequest(new { emailConfirmed = false, message = "The account's email has not been verified. Please verify it before logging in." });
             }
 
             // Tạo Refresh Token và lưu vào Cookie
