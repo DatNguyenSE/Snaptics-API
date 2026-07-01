@@ -18,13 +18,13 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class AccountController(UserManager<AppUser> userManager, ITokenService tokenService, IMailService mailService, IBudgetService _budgetService) : ControllerBase
+    public class AccountController(UserManager<AppUser> userManager, ITokenService tokenService, IMailService mailService, IBudgetService _budgetService) : BaseController<AccountController>
     {
-        [HttpPost("register")] 
+        [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
             var user = await userManager.FindByEmailAsync(dto.Email);
-            if(user != null)
+            if (user != null)
             {
                 return BadRequest("Email already in use");
             }
@@ -37,13 +37,13 @@ namespace API.Controllers
                     UserName = dto.Email
                 };
                 var result = await userManager.CreateAsync(newUser, dto.Password);
-                if(!result.Succeeded)
+                if (!result.Succeeded)
                 {
                     return BadRequest(result.Errors);
                 }
-                
+
                 await userManager.AddToRoleAsync(newUser, "user");
-                
+
                 var userBudget = new BudgetDto
                 {
                     UserId = newUser.Id,
@@ -87,24 +87,25 @@ namespace API.Controllers
                         Body = emailBody
                     });
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Logger.LogError(ex, $"Failed to send verification email: {ex.Message}");
                     return Ok("Registration successful, but failed to send verification email. Please request a new OTP.");
                 }
             }
             return Ok("Registration successful. Please check your email for the verification code.");
-        } 
+        }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
             var user = await userManager.FindByEmailAsync(dto.Email);
-            if(user == null)
+            if (user == null)
             {
                 return Unauthorized("Invalid email or password");
             }
             var result = await userManager.CheckPasswordAsync(user, dto.Password);
-            if(!result)
+            if (!result)
             {
                 return Unauthorized("Invalid email or password");
             }
@@ -238,7 +239,7 @@ namespace API.Controllers
             return await user.ToDto(tokenService);
         }
 
-         private async Task SetRefreshTokenCookie(AppUser user)
+        private async Task SetRefreshTokenCookie(AppUser user)
         {
             var refreshToken = tokenService.GenerateRefreshToken();
             user.RefreshToken = refreshToken;

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace API.Controllers
 {
     [Route("[controller]")]
-    public class BudgetController(IBudgetService _budgetService) : Controller
+    public class BudgetController(IBudgetService _budgetService) : BaseController<BudgetController>
     {
         private string GetUserId()
         {
@@ -26,32 +26,59 @@ namespace API.Controllers
             }
             catch (System.Exception ex)
             {
-                return BadRequest(ex.Message);
+                Logger.LogError(ex, $"LỖI DB: Lấy danh sách Budget của user {GetUserId()} thất bại.");
+                return StatusCode(500, "Đã xảy ra lỗi khi tải danh sách ngân sách.");
             }
         }
         [HttpGet]
         public async Task<ActionResult<IEnumerable<BudgetDto>>> GetBudgets()
         {
-            var budgets = await _budgetService.GetAllAsync();
-            return Ok(budgets);
+            try
+            {
+                var budgets = await _budgetService.GetAllAsync();
+                return Ok(budgets);
+            }
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, $"LỖI DB: Lấy toàn bộ danh sách Budget thất bại.");
+                return StatusCode(500, "Đã xảy ra lỗi hệ thống.");
+            }
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<BudgetDto>> GetBudget(int id)
         {
-            var budget = await _budgetService.GetByIdAsync(id);
-            if (budget == null)
+            try
             {
-                return NotFound("Budget not found");
+                var budget = await _budgetService.GetByIdAsync(id);
+                if (budget == null)
+                {
+                    return NotFound("Budget not found");
+                }
+                return Ok(budget);
             }
-            return Ok(budget);
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, $"LỖI DB: Lấy thông tin Budget ID {id} thất bại.");
+                return StatusCode(500, "Đã xảy ra lỗi hệ thống.");
+            }
         }
 
         [HttpPost]
         public async Task<ActionResult<BudgetDto>> CreateBudget([FromBody] BudgetDto budgetDto)
         {
-            var budget = await _budgetService.CreateAsync(budgetDto);
-            return CreatedAtAction(nameof(GetBudget), new { id = budget.Id }, budget);
+            try
+            {
+                var budget = await _budgetService.CreateAsync(budgetDto);
+
+                Logger.LogInformation($"User {GetUserId()} vừa tạo Budget mới (ID: {budget.Id})");
+                return CreatedAtAction(nameof(GetBudget), new { id = budget.Id }, budget);
+            }
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, $"LỖI DB: Tạo Budget mới thất bại.");
+                return StatusCode(500, "Không thể tạo ngân sách lúc này, vui lòng thử lại sau.");
+            }
         }
 
         [HttpPut("{id}")]
@@ -68,7 +95,8 @@ namespace API.Controllers
             }
             catch (System.Exception ex)
             {
-                return BadRequest(ex.Message);
+                Logger.LogError(ex, $"LỖI DB: Cập nhật Budget ID {id} thất bại.");
+                return StatusCode(500, "Lỗi hệ thống khi cập nhật ngân sách.");
             }
         }
 
@@ -78,11 +106,13 @@ namespace API.Controllers
             try
             {
                 var result = await _budgetService.DeleteAsync(id);
+                Logger.LogInformation($"User {GetUserId()} vừa xóa Budget ID {id}.");
                 return Ok(result);
             }
             catch (System.Exception ex)
             {
-                return BadRequest(ex.Message);
+                Logger.LogError(ex, $"LỖI DB: Xóa Budget ID {id} thất bại.");
+                return StatusCode(500, "Lỗi hệ thống khi xóa ngân sách.");
             }
         }
     }

@@ -12,7 +12,7 @@ namespace API.Controllers
     // [Authorize]
     [Route("ai")]
     [ApiController]
-    public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service) : ControllerBase
+    public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service) : BaseController<AiController>
     {
         /// <summary>
         /// Tính năng 1: Phân tích ảnh bằng AI.
@@ -40,16 +40,25 @@ namespace API.Controllers
             // Bước 2: Giới hạn dung lượng ảnh tối đa là 10MB để tránh overload
             if (image.Length > 10 * 1024 * 1024)
                 return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
+            try
+            {
+                Logger.LogInformation($"Bắt đầu phân tích ảnh món ăn (Dung lượng: {image.Length / 1024} KB).");
+                // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
+                var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
 
-            // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
-            var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
+                // Bước 4: Upload ảnh lên S3 được chuyển sang TransactionController để tránh rác S3
 
-            // Bước 4: Upload ảnh lên S3 được chuyển sang TransactionController để tránh rác S3
-            
-            // Gắn key ảnh
-            result.ImageKey = null;
+                // Gắn key ảnh
+                result.ImageKey = null;
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, $"Failed to analyze image: {ex.Message}");
+                return StatusCode(500, "An error occurred while processing the image.");
+            }
+
         }
 
         /// <summary>
@@ -79,7 +88,7 @@ namespace API.Controllers
             var result = await _aiService.ReadBillAsync(billImage);
 
             // Bước 4: Upload file lên S3 được chuyển sang TransactionController để tránh rác S3
-            
+
             // Gắn key vào kết quả
             var billImageKey = await _s3Service.UploadFileAsync(billImage, "bill", "bills");
 
