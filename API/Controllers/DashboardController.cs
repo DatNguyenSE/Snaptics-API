@@ -24,20 +24,43 @@ namespace API.Controllers
         }
 
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary([FromQuery] DateTime fromDate, [FromQuery] DateTime toDate)
+        public async Task<IActionResult> GetSummary(
+            [FromQuery] int? day, 
+            [FromQuery] int? month, 
+            [FromQuery] int? year)
         {
             try
             {
                 // var userId = User.GetUserId(); 
                 var userId = "user-123";
                 
+                int filterYear = year ?? DateTime.Now.Year;
+                int filterMonth = month ?? DateTime.Now.Month;
+                
+                DateTime fromDate;
+                DateTime toDate;
+
+                if (day.HasValue)
+                {
+                    // Filter trọn vẹn 1 ngày
+                    fromDate = new DateTime(filterYear, filterMonth, day.Value);
+                    toDate = fromDate.AddDays(1).AddTicks(-1); 
+                }
+                else
+                {
+                    // Filter trọn vẹn 1 tháng
+                    fromDate = new DateTime(filterYear, filterMonth, 1);
+                    toDate = fromDate.AddMonths(1).AddTicks(-1);
+                }
+
                 var result = await _dashboardService.GetDashboardSummaryAsync(userId, fromDate, toDate);
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "An error occurred while fetching dashboard summary.");
-                return StatusCode(500, "An error occurred while processing your request.");
+                Logger.LogError(ex, "Đã xảy ra lỗi hệ thống khi lấy dữ liệu Dashboard Summary.");
+                
+                return StatusCode(500, new { message = "An error occurred while processing your request." });
             }
 
 
