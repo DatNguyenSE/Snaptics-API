@@ -10,7 +10,8 @@ namespace BLL.Service
     public class TransactionService(
         IUnitOfWork _uow,
         IMapper mapper,
-        IItemDictionaryService _itemDictionaryService
+        IItemDictionaryService _itemDictionaryService,
+        IBudgetService _budgetService
     ) : ITransactionService
     {
         public async Task<IEnumerable<TransactionDto>
@@ -60,7 +61,7 @@ namespace BLL.Service
                 // 2. Lấy các category đã có từ DB (chỉ query 1 lần)
                 var existingCategories = await _uow.CategoryRepository
                     .FindAsync(c => categoryNames.Contains(c.Name!));
-                
+
                 foreach (var cat in existingCategories)
                 {
                     categoryDict[cat.Name!] = cat.Id;
@@ -84,10 +85,11 @@ namespace BLL.Service
                     }
                 }
             }
-
             // 5. Tạo entity Transaction
+            int usedBudgetId = await _budgetService.DeductMoneyAsync(dto.UserId, dto.TotalAmount, dto.BudgetId);
             var transaction = new DAL.Entities.Transaction
             {
+                BudgetId = usedBudgetId,
                 Name = dto.MerchantName ?? "Phân tích từ AI",
                 UserId = dto.UserId,
                 ImageKey = dto.ImageKey,
@@ -192,7 +194,7 @@ namespace BLL.Service
             };
             // Gọi hàm CreateWithDetailsAsync để tạo Transaction + Details + Category + ItemInventory
             var transactionDto = await CreateWithDetailsAsync(dto);
-            
+
             // read-bill:  IsAiEstimated = false
             // kiểm tra xem đã tạo transaction từ hàm CreateWithDetailsAsync chưa 
             var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionDto.Id);
@@ -225,7 +227,7 @@ namespace BLL.Service
             var dto = new CreateTransactionWithDetailsDto
             {
                 UserId = userId,
-                MerchantName = imageDto.ItemName, 
+                MerchantName = imageDto.ItemName,
                 ImageKey = imageDto.ImageKey,
                 TransactionDate = DateTime.UtcNow,
                 TotalAmount = imageDto.EstimatedPriceVND,
@@ -244,7 +246,7 @@ namespace BLL.Service
             };
 
             var transactionDto = await CreateWithDetailsAsync(dto);
-            
+
             // Theo yêu cầu: analyze thì IsAiEstimated = true
             var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionDto.Id);
             if (transaction != null)
@@ -320,7 +322,7 @@ namespace BLL.Service
         {
             // 1. Gọi Repo lấy data từ DB
             var transactions = await _uow.TransactionRepository.GetByUserIdAsync(userId);
-    
+
             // 2. Map sang DTO trả về
             return mapper.Map<IEnumerable<TransactionDto>>(transactions);
         }

@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260706093545_AddBudgetAndTransactionFeatures")]
+    partial class AddBudgetAndTransactionFeatures
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,7 +126,7 @@ namespace DAL.Data.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN",
-                            PasswordHash = "AQAAAAIAAYagAAAAENizfqLk4a3uNx28FmCqdVu9IKAnfzOXmkB17WcRlAjg8tO4zXFiqpa8w1phj6n8vw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEFWEvuU7Mqlh+ZL5YoPzzCdZl4CSxjzl93QsB5jipfVaO6W74FycgyZ7z9TJ7VbUFQ==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "STATIC-GUID-SEC-12345",
                             Status = "Active",
