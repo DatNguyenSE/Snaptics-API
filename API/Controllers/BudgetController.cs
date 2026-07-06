@@ -85,33 +85,6 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
-        [HttpPost("deduct")]
-        public async Task<IActionResult> DeductMoney([FromBody] DeductMoneyDto dto)
-        {
-            try
-            {
-                // var userId = User.GetUserId(); 
-                var userId = "user-123";
-
-                var isSuccess = await _budgetService.DeductMoneyAsync(
-                    userId,
-                    dto.Amount,
-                    dto.Note,
-                    dto.BudgetId,
-                    dto.IsAiEstimated);
-
-                if (isSuccess)
-                    return Ok(new { message = "Trừ tiền thành công và đã lưu lịch sử giao dịch!" });
-
-                return BadRequest(new { message = "Giao dịch thất bại." });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
-        }
-
         [HttpGet("history/{budgetId}")]
         public async Task<IActionResult> GetBudgetHistory(int budgetId)
         {

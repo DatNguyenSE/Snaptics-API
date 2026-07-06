@@ -5,6 +5,7 @@ namespace BLL.Dtos
 {
     public class CreateTransactionWithDetailsDto
     {
+        public int? BudgetId { get; set; }
         public string? MerchantName { get; set; }
         public string? ImageKey { get; set; }
         public required string UserId { get; set; }

@@ -86,7 +86,7 @@ namespace BLL.Service
             return _mapper.Map<BudgetDto>(existingEntity);
         }
 
-        public async Task<bool> DeductMoneyAsync(string userId, decimal amount, string note, int? budgetId = null, bool isAiEstimated = false)
+        public async Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null)
         {
             DAL.Entities.Budget targetBudget = null;
 
@@ -111,37 +111,19 @@ namespace BLL.Service
             targetBudget.CurrentAmount -= amount;
             _uow.BudgetRepository.Update(targetBudget);
 
-            // 2. Tạo lịch sử giao dịch (liên kết khóa ngoại BudgetId)
-            var transaction = new DAL.Entities.Transaction
-            {
-                Name = "Chi tiêu từ ví ngân sách",
-                TotalAmount = amount,
-                Note = note,
-                TransactionDate = DateTime.UtcNow,
-                UserId = userId,
-                BudgetId = targetBudget.Id, 
-                IsAiEstimated = isAiEstimated,
-                Status = DAL.Enums.TransactionStatusType.Completed,
-                CreatedAt = DateTime.UtcNow
-            };
+            return targetBudget.Id;
 
-            await _uow.TransactionRepository.AddAsync(transaction);
-
-            // 3. Commit toàn bộ thay đổi (Ví và Giao dịch) cùng 1 lúc
-            return await _uow.Complete();
         }
 
         public async Task<IEnumerable<TransactionDto>> GetBudgetHistoryAsync(string userId, int budgetId)
         {
-            // Dùng GetAllAsync để an toàn phòng hờ ITransactionRepository không có GetByUserIdAsync
-            var allTransactions = await _uow.TransactionRepository.GetAllAsync();
+            var history = await _uow.TransactionRepository.FindAsync(
+            t => t.UserId == userId && t.BudgetId == budgetId && !t.IsDeleted
+            );
 
-            var history = allTransactions
-                .Where(t => t.UserId == userId && t.BudgetId == budgetId && !t.IsDeleted)
-                .OrderByDescending(t => t.TransactionDate)
-                .ToList();
+            var sortedHistory = history.OrderByDescending(t => t.TransactionDate).ToList();
 
-            return _mapper.Map<IEnumerable<TransactionDto>>(history);
+            return _mapper.Map<IEnumerable<TransactionDto>>(sortedHistory);
         }
     }
 }
