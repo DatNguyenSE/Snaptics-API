@@ -119,7 +119,7 @@ namespace BLL.Service
                 Note = note,
                 TransactionDate = DateTime.UtcNow,
                 UserId = userId,
-                BudgetId = targetBudget.Id, // Cột ông vừa thêm vào DB
+                BudgetId = targetBudget.Id, 
                 IsAiEstimated = isAiEstimated,
                 Status = DAL.Enums.TransactionStatusType.Completed,
                 CreatedAt = DateTime.UtcNow
