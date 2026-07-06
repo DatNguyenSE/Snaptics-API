@@ -170,22 +170,6 @@ using (var scope = app.Services.CreateScope())
     );
 }
 
-using (var scope = app.Services.CreateScope())
-{
-    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
-    // Hẹn giờ 20:00 hàng ngày
-    recurringJobManager.AddOrUpdate<IMissingPriceJob>(
-        "remind-missing-price-daily",
-        job => job.ScanAndSendNotificationAsync(),
-        "0 20 * * *" 
-    );
-
-    recurringJobManager.AddOrUpdate<IItemReviewJobService>(
-        "remind-item-review-daily",
-        job => job.ScanAndSendNotificationAsync(30),
-        "0 20 * * *"
-    );
-}
 
 
 app.UseHttpsRedirection();
