@@ -40,7 +40,18 @@ namespace BLL.Service
             if (budgetDto.EndDate.HasValue && budgetDto.EndDate.Value <= budgetDto.StartDate)
                 throw new ArgumentException("EndDate must be after StartDate");
 
+            if (budgetDto.IsDefault)
+            {
+                var userBudgets = await _uow.BudgetRepository.GetByUserIdAsync(budgetDto.UserId);
+                var oldDefaults = userBudgets.Where(b => b.IsDefault).ToList();
+                foreach (var old in oldDefaults)
+                {
+                    old.IsDefault = false;
+                    _uow.BudgetRepository.Update(old);
+                }
+            }
             var entity = _mapper.Map<DAL.Entities.Budget>(budgetDto);
+            entity.CurrentAmount = budgetDto.Amount;
             await _uow.BudgetRepository.AddAsync(entity);
             await _uow.Complete();
             return _mapper.Map<BudgetDto>(entity);
@@ -73,6 +84,46 @@ namespace BLL.Service
             _uow.BudgetRepository.Delete(existingEntity);
             await _uow.Complete();
             return _mapper.Map<BudgetDto>(existingEntity);
+        }
+
+        public async Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null)
+        {
+            DAL.Entities.Budget targetBudget = null;
+
+            if (budgetId.HasValue)
+            {
+                // Chọn thủ công: Lấy đúng ví truyền vào
+                targetBudget = await _uow.BudgetRepository.GetByIdAsync(budgetId.Value);
+                if (targetBudget == null || targetBudget.UserId != userId || !targetBudget.IsActive)
+                    throw new Exception("Ví ngân sách không tồn tại hoặc đã bị khóa.");
+            }
+            else
+            {
+                // Tự động (Scan hóa đơn): Tìm ví đang được set IsDefault = true
+                var userBudgets = await _uow.BudgetRepository.GetByUserIdAsync(userId);
+                targetBudget = userBudgets.FirstOrDefault(b => b.IsDefault && b.IsActive);
+
+                if (targetBudget == null)
+                    throw new Exception("Không tìm thấy ví mặc định để tự động trừ tiền. Vui lòng thiết lập ví mặc định.");
+            }
+
+            // 1. Trừ tiền số dư khả dụng
+            targetBudget.CurrentAmount -= amount;
+            _uow.BudgetRepository.Update(targetBudget);
+
+            return targetBudget.Id;
+
+        }
+
+        public async Task<IEnumerable<TransactionDto>> GetBudgetHistoryAsync(string userId, int budgetId)
+        {
+            var history = await _uow.TransactionRepository.FindAsync(
+            t => t.UserId == userId && t.BudgetId == budgetId && !t.IsDeleted
+            );
+
+            var sortedHistory = history.OrderByDescending(t => t.TransactionDate).ToList();
+
+            return _mapper.Map<IEnumerable<TransactionDto>>(sortedHistory);
         }
     }
 }
