@@ -20,6 +20,7 @@ namespace API.Controllers
     {
         
         [HttpGet]
+        [Authorize(Roles = "admin")]
         public async Task<ActionResult<IReadOnlyList<TransactionDto>>
         > GetTransactions()
         {

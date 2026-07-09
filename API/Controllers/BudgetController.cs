@@ -4,11 +4,13 @@ using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    [Authorize]
     public class BudgetController(IBudgetService _budgetService) : Controller
     {
 
@@ -28,6 +30,7 @@ namespace API.Controllers
             }
         }
         [HttpGet]
+        [Authorize(Roles = "admin")]
         public async Task<ActionResult<IEnumerable<BudgetDto>>> GetBudgets()
         {
             var budgets = await _budgetService.GetAllAsync();

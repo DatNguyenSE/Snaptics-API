@@ -9,7 +9,7 @@ namespace API.Controllers
     /// - Phân tích ảnh bằng AI (ChatGPT / gpt-4o-mini)
     /// - Đọc hóa đơn/bill bằng Azure Document Intelligence
     /// </summary>
-    // [Authorize]
+    [Authorize]
     [Route("ai")]
     [ApiController]
     public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service) : ControllerBase

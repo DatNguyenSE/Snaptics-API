@@ -3,6 +3,7 @@ using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
@@ -28,6 +29,7 @@ namespace API.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<ItemDictionaryDto>> CreateItemDictionary([FromBody] ItemDictionaryDto itemDictionaryDto)
         {
             var item = await _itemDictionaryService.CreateAsync(itemDictionaryDto);
@@ -35,6 +37,7 @@ namespace API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<ActionResult<ItemDictionaryDto>> UpdateItemDictionary(int id, [FromBody] ItemDictionaryDto itemDictionaryDto)
         {
             if (id != itemDictionaryDto.Id)
@@ -53,6 +56,7 @@ namespace API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult<ItemDictionaryDto>> DeleteItemDictionary(int id)
         {
             try
@@ -67,6 +71,7 @@ namespace API.Controllers
         }
 
         [HttpPost("cleanup")]
+        [Authorize]
         public async Task<ActionResult> CleanupDictionaries([FromQuery] int maxHitCount = 1, [FromQuery] int olderThanDays = 30)
         {
             try

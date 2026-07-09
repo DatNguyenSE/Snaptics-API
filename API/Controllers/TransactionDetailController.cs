@@ -1,16 +1,19 @@
-﻿using BLL.Interfaces.IServices;
+using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 using BLL.Dtos;
 using DAL.IRepositories;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
     [Route("[controller]")]
+    [Authorize]
     public class TransactionDetailController(ITransactionDetailService _transactionDetailService,
                 IUnitOfWork _uow) : Controller
     {
         
         [HttpGet]
+        [Authorize(Roles = "admin")]
         public async Task<ActionResult<IEnumerable<TransactionDetailDto>>> GetTransactionDetails()
         {
             var transactionDetails = await _transactionDetailService.GetAllAsync();
