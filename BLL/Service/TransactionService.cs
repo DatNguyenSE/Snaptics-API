@@ -178,6 +178,7 @@ namespace BLL.Service
             //dto(Trans + TransDetail) -> record(Trans + TransDetail + Category(if new) + ItemIventory(if Tracking)
             var dto = new CreateTransactionWithDetailsDto
             {
+                BudgetId = billDto.BudgetId,
                 UserId = userId,
                 MerchantName = billDto.MerchantName ?? "Hóa đơn siêu thị",
                 ImageKey = BillImageKey,
@@ -227,6 +228,7 @@ namespace BLL.Service
             // Map AnalyzeImageResponseDto sang CreateTransactionWithDetailsDto
             var dto = new CreateTransactionWithDetailsDto
             {
+                BudgetId = imageDto.BudgetId,
                 UserId = userId,
                 MerchantName = imageDto.ItemName, 
                 ImageKey = ImageKey,

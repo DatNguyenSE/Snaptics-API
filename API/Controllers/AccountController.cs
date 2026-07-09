@@ -46,12 +46,12 @@ namespace API.Controllers
                 
                 var userBudget = new BudgetDto
                 {
-                    UserId = newUser.Id,
+                    Name = "Default Budget",
                     StartDate = DateTime.Now,
                     CreatedAt = DateTime.Now,
                     IsActive = true
                 };
-                await _budgetService.CreateAsync(userBudget);
+                await _budgetService.CreateAsync(newUser.Id, userBudget);
 
                 // Generate OTP using Identity Token Provider
                 var otp = await userManager.GenerateUserTokenAsync(newUser, TokenOptions.DefaultEmailProvider, "ConfirmEmail");
@@ -87,9 +87,9 @@ namespace API.Controllers
                         Body = emailBody
                     });
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    return Ok("Registration successful, but failed to send verification email. Please request a new OTP.");
+                    return Ok($"Registration successful, but failed to send verification email.");
                 }
             }
             return Ok("Registration successful. Please check your email for the verification code.");

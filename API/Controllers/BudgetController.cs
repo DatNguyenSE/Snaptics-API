@@ -1,3 +1,4 @@
+using API.Extensions;
 using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
@@ -6,13 +7,10 @@ using System.Threading.Tasks;
 
 namespace API.Controllers
 {
+    [ApiController]
     [Route("[controller]")]
     public class BudgetController(IBudgetService _budgetService) : Controller
     {
-        private string GetUserId()
-        {
-            return "user-12345-mock-id";
-        }
 
         // =========================================================
         [HttpGet("user")]
@@ -20,7 +18,7 @@ namespace API.Controllers
         {
             try
             {
-                var userId = GetUserId();
+                var userId = User.GetUserId();
                 var budgets = await _budgetService.GetByUserIdAsync(userId);
                 return Ok(budgets);
             }
@@ -50,8 +48,21 @@ namespace API.Controllers
         [HttpPost]
         public async Task<ActionResult<BudgetDto>> CreateBudget([FromBody] BudgetDto budgetDto)
         {
-            var budget = await _budgetService.CreateAsync(budgetDto);
-            return CreatedAtAction(nameof(GetBudget), new { id = budget.Id }, budget);
+            var userId = User.GetUserId();
+            if(userId == null)
+            {
+                return Unauthorized("User ID not found in claims.");
+            }
+
+            try
+            {
+                var budget = await _budgetService.CreateAsync(userId, budgetDto);
+                return CreatedAtAction(nameof(GetBudget), new { id = budget.Id }, budget);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
@@ -90,8 +101,11 @@ namespace API.Controllers
         {
             try
             {
-                // var userId = User.GetUserId(); 
-                var userId = "user-123";
+                var userId = User.GetUserId();
+                if (userId == null)
+                {
+                    return Unauthorized("User ID not found in claims.");
+                }
 
                 var history = await _budgetService.GetBudgetHistoryAsync(userId, budgetId);
 

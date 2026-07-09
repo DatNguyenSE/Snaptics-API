@@ -76,12 +76,12 @@ namespace API.Controllers
                     {
                         billDto.Items = System.Text.Json.JsonSerializer.Deserialize<List<BillItemDto>>(
                             itemsString, 
-                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true, AllowTrailingCommas = true }
                         ) ?? new List<BillItemDto>();
                     }
-                    catch
+                    catch (System.Exception ex)
                     {
-                        // Ignore and let validation fail below
+                        return BadRequest("Lỗi parse Items JSON: " + ex.Message + " | Input: " + itemsString);
                     }
                 }
             }
