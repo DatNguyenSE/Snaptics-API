@@ -1,4 +1,5 @@
 using BLL.Dtos;
+using BLL.Dtos.AiDto;
 
 namespace BLL.Interfaces.IServices
 {
@@ -10,8 +11,8 @@ namespace BLL.Interfaces.IServices
 
         Task<TransactionDto> CreateAsync(TransactionDto transactionDto);
         Task<TransactionDto> CreateWithDetailsAsync(CreateTransactionWithDetailsDto dto);
-        Task<TransactionDto> CreateFromBillAsync(string userId, BLL.Dtos.AiDto.BillReadResultDto billDto);
-        Task<TransactionDto> CreateFromImageAnalyzeAsync(string userId, BLL.Dtos.AiDto.AnalyzeImageResponseDto imageDto);
+        Task<TransactionDto> CreateFromBillAsync(string userId, BillReadResultDto billDto, string billImageKey);
+        Task<TransactionDto> CreateFromImageAnalyzeAsync(string userId, AnalyzeImageResponseDto imageDto, string ImageKey);
 
         Task<TransactionDto> UpdateAsync(int transactionId, TransactionDto transactionDto);
 

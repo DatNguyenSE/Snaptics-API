@@ -13,7 +13,7 @@ namespace BLL.Dtos.AiDto
         public decimal TotalAmount { get; set; }
 
         public string? Currency { get; set; }
-        public string? BillImageKey { get; set; } // S3 key của ảnh bill đã upload
+        // public string? BillImageKey { get; set; } // S3 key của ảnh bill đã upload
 
         public List<BillItemDto> Items { get; set; } = new();
     }

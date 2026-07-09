@@ -54,8 +54,38 @@ namespace API.Controllers
         }
 
         [HttpPost("from-bill")]
-        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromBody] BillReadResultDto billDto)
+        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromForm] BillReadResultDto billDto, IFormFile? image)
         {
+            // Support Swagger and clients that send Items as a JSON string in a single form field
+            if ((billDto.Items == null || !billDto.Items.Any()) && Request.HasFormContentType && Request.Form.TryGetValue("Items", out var itemsValues))
+            {
+                // Handle multiple "Items" form fields (e.g., from Swagger's "Add object item" button)
+                var itemsString = itemsValues.Count > 1 
+                    ? "[" + string.Join(",", itemsValues) + "]" 
+                    : itemsValues.ToString();
+                
+                // If it's a single item but not wrapped in an array, wrap it
+                if (!string.IsNullOrWhiteSpace(itemsString) && !itemsString.TrimStart().StartsWith("["))
+                {
+                    itemsString = $"[{itemsString}]";
+                }
+
+                if (!string.IsNullOrWhiteSpace(itemsString))
+                {
+                    try
+                    {
+                        billDto.Items = System.Text.Json.JsonSerializer.Deserialize<List<BillItemDto>>(
+                            itemsString, 
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                        ) ?? new List<BillItemDto>();
+                    }
+                    catch
+                    {
+                        // Ignore and let validation fail below
+                    }
+                }
+            }
+
             if (billDto == null ||
                 string.IsNullOrWhiteSpace(billDto.MerchantName) ||
                 billDto.Items == null ||
@@ -63,11 +93,20 @@ namespace API.Controllers
             {
                 return BadRequest("merchantName và Item không được để trống.");
             }
+            
+            if(image == null || image.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file ảnh.");
+            }
 
             var userId = User.GetUserId();
 
+         
+            var billImageKey = await _s3Service.UploadFileAsync(image, "bill-images");
+          
+
             var transaction =
-                await _transactionService.CreateFromBillAsync(userId, billDto);
+                await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey);
 
             return CreatedAtAction(
                 nameof(GetTransaction),
@@ -76,16 +115,23 @@ namespace API.Controllers
         }
 
         [HttpPost("from-analyze")]
-        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromForm] BLL.Dtos.AiDto.AnalyzeImageResponseDto data, IFormFile? image)
+        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromForm] AnalyzeImageResponseDto data, IFormFile? image)
         {   
             var imageDto = data;
             if (imageDto == null || string.IsNullOrWhiteSpace(imageDto.ItemName))
             {
                 return BadRequest("itemName không được để trống.");
             }
+            if (image == null || image.Length == 0)
+            {
+                return BadRequest("Vui lòng chọn file ảnh.");
+            }
 
             var userId = User.GetUserId(); 
-            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto);
+
+            var imageKey = await _s3Service.UploadFileAsync(image, "analyze-images");
+        
+            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey);
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
 
