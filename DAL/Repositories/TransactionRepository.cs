@@ -25,7 +25,7 @@ namespace DAL.Repositories
         }
         public async Task<IEnumerable<DAL.Entities.Transaction>> GetByUserIdAsync(string userId)
         {
-            return await _dbSet.Where(x => x.UserId == userId).ToListAsync();
+            return await _dbSet.Include(t => t.TransactionDetails).Where(x => x.UserId == userId).ToListAsync();
         }
         public async Task<IEnumerable<Transaction>> GetCompletedTransactionsWithDetailsAsync(string userId, DateTime from, DateTime to)
         {
