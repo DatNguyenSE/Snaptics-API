@@ -25,7 +25,7 @@ namespace BLL.Service
         public async Task SendEmailAsync(EmailRequest request)
         {
             var email = new MimeMessage();
-            email.Sender = MailboxAddress.Parse(_settings.Email);
+            email.From.Add(MailboxAddress.Parse(_settings.Email));
             email.To.Add(MailboxAddress.Parse(request.ToEmail));
             email.Subject = request.Subject;
 

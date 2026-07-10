@@ -34,15 +34,21 @@ namespace BLL.Service
             return _mapper.Map<BudgetDto>(budget);
         }
 
-        public async Task<BudgetDto> CreateAsync(BudgetDto budgetDto)
+        public async Task<BudgetDto> CreateAsync(string userId, BudgetDto budgetDto)
         {
+            ArgumentNullException.ThrowIfNull(budgetDto);
             if (budgetDto.Amount < 0) throw new ArgumentException("Budget amount cannot be negative");
             if (budgetDto.EndDate.HasValue && budgetDto.EndDate.Value <= budgetDto.StartDate)
                 throw new ArgumentException("EndDate must be after StartDate");
 
+            var userBudgets = await _uow.BudgetRepository.GetByUserIdAsync(userId);
+            if (userBudgets.Any(b => string.Equals(b.Name, budgetDto.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ArgumentException("A budget with this name already exists.");
+            }
+
             if (budgetDto.IsDefault)
             {
-                var userBudgets = await _uow.BudgetRepository.GetByUserIdAsync(budgetDto.UserId);
                 var oldDefaults = userBudgets.Where(b => b.IsDefault).ToList();
                 foreach (var old in oldDefaults)
                 {
@@ -52,6 +58,7 @@ namespace BLL.Service
             }
             var entity = _mapper.Map<DAL.Entities.Budget>(budgetDto);
             entity.CurrentAmount = budgetDto.Amount;
+            entity.UserId = userId;
             await _uow.BudgetRepository.AddAsync(entity);
             await _uow.Complete();
             return _mapper.Map<BudgetDto>(entity);
@@ -59,6 +66,7 @@ namespace BLL.Service
 
         public async Task<BudgetDto> UpdateAsync(int id, BudgetDto budgetDto)
         {
+            ArgumentNullException.ThrowIfNull(budgetDto);
             if (budgetDto.Amount < 0) throw new ArgumentException("Budget amount cannot be negative");
             if (budgetDto.EndDate.HasValue && budgetDto.EndDate.Value <= budgetDto.StartDate)
                 throw new ArgumentException("EndDate must be after StartDate");

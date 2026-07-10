@@ -1,11 +1,13 @@
-﻿using BLL.Dtos;
+using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 using DAL.Enums;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
     [Route("[controller]")]
+    [Authorize]
     public class ItemInventoryController(IItemInventoryService itemInventoryService, IItemReviewJobService itemReviewJobService) : Controller
     {
         private string GetUserId()
@@ -29,6 +31,7 @@ namespace API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "admin")]
         public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetItemInventories()
         {
             var itemInventories = await itemInventoryService.GetAllAsync();

@@ -3,10 +3,12 @@ using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
     [Route("[controller]")]
+    [Authorize]
     public class NotificationController(INotificationService _notificationService) : Controller
     {
         private string GetUserId()
@@ -15,6 +17,7 @@ namespace API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "admin")]
         public async Task<ActionResult<IEnumerable<NotificationDto>>> GetNotifications()
         {
             var notifications = await _notificationService.GetAllAsync();

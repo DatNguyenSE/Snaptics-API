@@ -4,6 +4,7 @@ using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
 using DAL.Enums;
+using BLL.Dtos.AiDto;
 
 namespace BLL.Service
 {
@@ -166,7 +167,7 @@ namespace BLL.Service
             return mapper.Map<TransactionDto>(transaction);
         }
 
-        public async Task<TransactionDto> CreateFromBillAsync(string userId, BLL.Dtos.AiDto.BillReadResultDto billDto)
+        public async Task<TransactionDto> CreateFromBillAsync(string userId, BillReadResultDto billDto, string BillImageKey)
         {
             if (billDto == null) throw new ArgumentNullException(nameof(billDto));
 
@@ -177,9 +178,10 @@ namespace BLL.Service
             //dto(Trans + TransDetail) -> record(Trans + TransDetail + Category(if new) + ItemIventory(if Tracking)
             var dto = new CreateTransactionWithDetailsDto
             {
+                BudgetId = billDto.BudgetId,
                 UserId = userId,
                 MerchantName = billDto.MerchantName ?? "Hóa đơn siêu thị",
-                ImageKey = billDto.BillImageKey,
+                ImageKey = BillImageKey,
                 TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow,
                 TotalAmount = finalTotal,
                 // insert transation-details from parameter billDto.Items
@@ -219,16 +221,17 @@ namespace BLL.Service
             return transactionDto;
         }
 
-        public async Task<TransactionDto> CreateFromImageAnalyzeAsync(string userId, BLL.Dtos.AiDto.AnalyzeImageResponseDto imageDto)
+        public async Task<TransactionDto> CreateFromImageAnalyzeAsync(string userId, AnalyzeImageResponseDto imageDto, string ImageKey)
         {
             if (imageDto == null) throw new ArgumentNullException(nameof(imageDto));
 
             // Map AnalyzeImageResponseDto sang CreateTransactionWithDetailsDto
             var dto = new CreateTransactionWithDetailsDto
             {
+                BudgetId = imageDto.BudgetId,
                 UserId = userId,
-                MerchantName = imageDto.ItemName,
-                ImageKey = imageDto.ImageKey,
+                MerchantName = imageDto.ItemName, 
+                ImageKey = ImageKey,
                 TransactionDate = DateTime.UtcNow,
                 TotalAmount = imageDto.EstimatedPriceVND,
                 Items = new List<CreateTransactionDetailItemDto>

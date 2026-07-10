@@ -8,6 +8,7 @@ using BLL.Interfaces.IServices;
 using BLL.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
@@ -32,12 +33,14 @@ namespace API.Controllers
             return Ok(category);
         }
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CategoryDto categoryDto)
         {
             var category = await _cateService.CreateAsync(categoryDto);
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
         [HttpPost("CreateByName")]
+        [Authorize]
         public async Task<ActionResult<CategoryDto>> CreateCategoryByName([FromBody] string categoryName)
         {
             var category = await _cateService.CreateByNameAsync(categoryName);

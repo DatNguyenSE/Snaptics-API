@@ -1,5 +1,6 @@
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace API.Controllers
 {
@@ -8,6 +9,7 @@ namespace API.Controllers
     public class S3Controller(IS3Service _s3Service) : ControllerBase
     {
         [HttpPost("upload")]
+        [Authorize]
         public async Task<IActionResult> Upload(IFormFile file)
         {
             if (file == null || file.Length == 0)
