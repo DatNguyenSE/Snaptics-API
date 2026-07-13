@@ -24,32 +24,81 @@ namespace API.Controllers
 
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary(
-            [FromQuery] int? day, 
-            [FromQuery] int? month, 
-            [FromQuery] int? year)
+            [FromQuery] string filterType = "month",
+            [FromQuery] int? day = null, 
+            [FromQuery] int? month = null, 
+            [FromQuery] int? year = null)
         {
 
             var userId = User.GetUserId();
         
-            int filterYear = year ?? DateTime.Now.Year;
-            int filterMonth = month ?? DateTime.Now.Month;
-
             DateTime fromDate;
             DateTime toDate;
+            DateTime now = DateTime.Now;
 
-            if (day.HasValue)
+            switch (filterType.ToLower())
             {
-                // Kịch bản A: Lọc theo ĐÚNG 1 ngày cụ thể
-                fromDate = new DateTime(filterYear, filterMonth, day.Value);
-                toDate = fromDate.AddDays(1).AddTicks(-1); // Lấy đến 23:59:59 của ngày đó
+                case "week":
+                    // Start of week (Monday)
+                    int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+                    fromDate = now.Date.AddDays(-1 * diff);
+                    toDate = fromDate.AddDays(7).AddTicks(-1);
+                    break;
+                case "year":
+                    fromDate = new DateTime(year ?? now.Year, 1, 1);
+                    toDate = fromDate.AddYears(1).AddTicks(-1);
+                    break;
+                case "day":
+                    fromDate = new DateTime(year ?? now.Year, month ?? now.Month, day ?? now.Day);
+                    toDate = fromDate.AddDays(1).AddTicks(-1);
+                    break;
+                case "month":
+                default:
+                    fromDate = new DateTime(year ?? now.Year, month ?? now.Month, 1);
+                    toDate = fromDate.AddMonths(1).AddTicks(-1);
+                    break;
             }
-            else
-            {
-                // Kịch bản B: Lọc theo NGUYÊN THÁNG
-                fromDate = new DateTime(filterYear, filterMonth, 1);
-                toDate = fromDate.AddMonths(1).AddTicks(-1); // Lấy đến 23:59:59 của ngày cuối tháng
-            }
+
             var result = await _dashboardService.GetDashboardSummaryAsync(userId, fromDate, toDate);
+            return Ok(result);
+        }
+
+        [HttpGet("category-summary")]
+        public async Task<IActionResult> GetCategorySummary(
+            [FromQuery] string filterType = "month",
+            [FromQuery] int? day = null, 
+            [FromQuery] int? month = null, 
+            [FromQuery] int? year = null)
+        {
+            var userId = User.GetUserId();
+        
+            DateTime fromDate;
+            DateTime toDate;
+            DateTime now = DateTime.Now;
+
+            switch (filterType.ToLower())
+            {
+                case "week":
+                    int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+                    fromDate = now.Date.AddDays(-1 * diff);
+                    toDate = fromDate.AddDays(7).AddTicks(-1);
+                    break;
+                case "year":
+                    fromDate = new DateTime(year ?? now.Year, 1, 1);
+                    toDate = fromDate.AddYears(1).AddTicks(-1);
+                    break;
+                case "day":
+                    fromDate = new DateTime(year ?? now.Year, month ?? now.Month, day ?? now.Day);
+                    toDate = fromDate.AddDays(1).AddTicks(-1);
+                    break;
+                case "month":
+                default:
+                    fromDate = new DateTime(year ?? now.Year, month ?? now.Month, 1);
+                    toDate = fromDate.AddMonths(1).AddTicks(-1);
+                    break;
+            }
+
+            var result = await _dashboardService.GetCategorySummaryAsync(userId, fromDate, toDate);
             return Ok(result);
         }
     }

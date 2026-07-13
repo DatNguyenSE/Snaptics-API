@@ -81,6 +81,46 @@ namespace BLL.Service
             return response;
         }
 
+        public async Task<CategorySummaryResponseDto> GetCategorySummaryAsync(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var startDate = fromDate.Date;
+            var endDateExclusive = toDate.Date.AddDays(1);
+
+            var query = _context.Transactions
+                .Include(t => t.TransactionDetails)
+                .ThenInclude(td => td.Category)
+                .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDateExclusive);
+
+            var transactions = await query.ToListAsync();
+
+            var groupedCategories = transactions
+                .SelectMany(t => t.TransactionDetails)
+                .Where(td => td.Category != null && td.Category.Type == CategoryType.Expense)
+                .GroupBy(td => td.Category?.Name ?? "Khác")
+                .Select(g => new CategorySummaryItemDto
+                {
+                    Name = g.Key,
+                    TotalAmount = g.Sum(td => td.Price * td.Quantity)
+                })
+                .OrderByDescending(x => x.TotalAmount)
+                .ToList();
+
+            var totalAmountAll = groupedCategories.Sum(x => x.TotalAmount);
+
+            foreach (var item in groupedCategories)
+            {
+                item.Percentage = totalAmountAll > 0 ? Math.Round((item.TotalAmount / totalAmountAll) * 100, 2) : 0;
+            }
+
+            var response = new CategorySummaryResponseDto
+            {
+                Breakdown = groupedCategories,
+                TopCategory = groupedCategories.FirstOrDefault()
+            };
+
+            return response;
+        }
+
         private List<BarChartDto> BuildHourlyBarChart(List<Transaction> transactions, DateTime dayStart)
         {
             var aggregates = transactions

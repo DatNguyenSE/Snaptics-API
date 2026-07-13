@@ -9,5 +9,6 @@ namespace BLL.Interfaces.IServices
     public interface IDashboardService
     {
         Task<DashboardResponseDto> GetDashboardSummaryAsync(string userId, DateTime fromDate, DateTime toDate);
+        Task<CategorySummaryResponseDto> GetCategorySummaryAsync(string userId, DateTime fromDate, DateTime toDate);
     }
 }

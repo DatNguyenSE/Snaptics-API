@@ -5,50 +5,15 @@ namespace BLL.AI
 {
     public static class PromptBuilder
     {
-        public static string Build(
-            FinancialContextDto context,
-            string question)
+        public static string Build()
         {
             var prompt = new StringBuilder();
 
-            prompt.AppendLine("Bạn là AI Financial Assistant của Snaptics.");
-
-            prompt.AppendLine();
-
-            prompt.AppendLine("Chỉ được trả lời dựa trên dữ liệu được cung cấp.");
-
-            prompt.AppendLine("Nếu thiếu dữ liệu hãy nói rõ.");
-
-            prompt.AppendLine();
-
-            prompt.AppendLine("===== Thông tin tài chính =====");
-
-            prompt.AppendLine($"Tổng tiền tháng này: {context.TotalSpentThisMonth}");
-
-            prompt.AppendLine($"Số giao dịch: {context.TotalTransactionsThisMonth}");
-
-            prompt.AppendLine($"Danh mục chi nhiều nhất: {context.TopSpendingCategory}");
-
-            if (context.AllCategoriesThisMonth.Any())
-            {
-                prompt.AppendLine($"Các danh mục đã chi tiêu: {string.Join(", ", context.AllCategoriesThisMonth)}");
-            }
-
-            prompt.AppendLine($"Số món cần review: {context.NeedReviewCount}");
-
-            prompt.AppendLine($"Số giao dịch thiếu giá: {context.MissingPriceCount}");
-
-            if (context.NeedReviewItems.Any())
-            {
-                prompt.AppendLine(
-                    $"Review items: {string.Join(", ", context.NeedReviewItems)}");
-            }
-
-            prompt.AppendLine();
-
-            prompt.AppendLine("===== User Question =====");
-
-            prompt.AppendLine(question);
+            prompt.AppendLine("Bạn là trợ lý tài chính thông minh của ứng dụng Snaptics.");
+            prompt.AppendLine("Nhiệm vụ của bạn là hỗ trợ người dùng ghi chép chi tiêu và tra cứu thống kê.");
+            prompt.AppendLine("Khi người dùng yêu cầu ghi chép (ví dụ: 'ăn trưa 300k'), hãy sử dụng tool add_transaction.");
+            prompt.AppendLine("Khi người dùng hỏi số liệu (ví dụ: 'tháng này tiêu bao nhiêu'), hãy sử dụng tool query_financial.");
+            prompt.AppendLine("Nếu câu hỏi không liên quan đến tài chính, bạn hãy giao tiếp thân thiện như một chatbot bình thường.");
 
             return prompt.ToString();
         }
