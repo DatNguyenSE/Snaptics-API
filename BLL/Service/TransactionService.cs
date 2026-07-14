@@ -97,6 +97,7 @@ namespace BLL.Service
                 TotalAmount = dto.TotalAmount,
                 TransactionDate = dto.TransactionDate,
                 Note = dto.Note,
+                IsExpense = dto.IsExpense,
                 Status = DAL.Enums.TransactionStatusType.Completed, // Mặc định
                 IsAiEstimated = true,
                 CreatedAt = DateTime.UtcNow,

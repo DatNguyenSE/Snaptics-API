@@ -101,5 +101,44 @@ namespace API.Controllers
             var result = await _dashboardService.GetCategorySummaryAsync(userId, fromDate, toDate);
             return Ok(result);
         }
+
+        [HttpGet("trend-summary")]
+        public async Task<IActionResult> GetTrendSummary(
+            [FromQuery] string filterType = "month",
+            [FromQuery] int? day = null, 
+            [FromQuery] int? month = null, 
+            [FromQuery] int? year = null)
+        {
+            var userId = User.GetUserId();
+        
+            DateTime fromDate;
+            DateTime toDate;
+            DateTime now = DateTime.Now;
+
+            switch (filterType.ToLower())
+            {
+                case "week":
+                    int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+                    fromDate = now.Date.AddDays(-1 * diff);
+                    toDate = fromDate.AddDays(7).AddTicks(-1);
+                    break;
+                case "year":
+                    fromDate = new DateTime(year ?? now.Year, 1, 1);
+                    toDate = fromDate.AddYears(1).AddTicks(-1);
+                    break;
+                case "day":
+                    fromDate = new DateTime(year ?? now.Year, month ?? now.Month, day ?? now.Day);
+                    toDate = fromDate.AddDays(1).AddTicks(-1);
+                    break;
+                case "month":
+                default:
+                    fromDate = new DateTime(year ?? now.Year, month ?? now.Month, 1);
+                    toDate = fromDate.AddMonths(1).AddTicks(-1);
+                    break;
+            }
+
+            var result = await _dashboardService.GetTrendSummaryAsync(userId, fromDate, toDate);
+            return Ok(result);
+        }
     }
 }

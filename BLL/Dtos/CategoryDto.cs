@@ -10,7 +10,6 @@ namespace BLL.Dtos
     {
         public int Id { get; set; }
         public required string Name { get; set; } 
-        public CategoryType Type { get; set; } = CategoryType.Expense;
         public bool IsTrackableInventory { get; set; }
         public string? Icon { get; set; } 
         public string? Color { get; set; } 

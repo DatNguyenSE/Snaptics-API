@@ -22,6 +22,7 @@ namespace DAL.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? Note { get; set; }
         public bool IsDeleted { get; set; } = false;
+        public bool IsExpense { get; set; } = true;
 
         public int? BudgetId { get; set; }
         public virtual Budget Budget { get; set; }

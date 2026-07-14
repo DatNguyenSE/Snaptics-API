@@ -14,5 +14,6 @@ namespace BLL.Dtos
         public DateTime? EndDate { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DAL.Enums.BudgetType Type { get; set; }
     }
 }
