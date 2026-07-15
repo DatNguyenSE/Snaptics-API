@@ -33,23 +33,23 @@ namespace BLL.Service
             var transactions = await query.ToListAsync();
             var response = new DashboardResponseDto();
 
-            // 2. Tính thẻ Tổng quan từ TransactionDetails theo CategoryType
+            // 2. Tính thẻ Tổng quan từ Transaction
             response.TotalIncome = transactions
+                .Where(t => !t.IsExpense)
                 .SelectMany(t => t.TransactionDetails)
-                .Where(td => td.Category != null && td.Category.Type == CategoryType.Income)
                 .Sum(td => td.Price * td.Quantity);
 
             response.TotalExpense = transactions
+                .Where(t => t.IsExpense)
                 .SelectMany(t => t.TransactionDetails)
-                .Where(td => td.Category != null && td.Category.Type == CategoryType.Expense)
                 .Sum(td => td.Price * td.Quantity);
 
             response.Balance = response.TotalIncome - response.TotalExpense;
 
             // 3. Biểu đồ tròn (Cơ cấu chi tiêu - chỉ tính Expense)
             response.PieChart = transactions
+                .Where(t => t.IsExpense)
                 .SelectMany(t => t.TransactionDetails)
-                .Where(td => td.Category != null && td.Category.Type == CategoryType.Expense)
                 .GroupBy(td => td.Category?.Name ?? "Unknown")
                 .Select(g => new PieChartDto
                 {
@@ -81,6 +81,74 @@ namespace BLL.Service
             return response;
         }
 
+        public async Task<CategorySummaryResponseDto> GetCategorySummaryAsync(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var startDate = fromDate.Date;
+            var endDateExclusive = toDate.Date.AddDays(1);
+
+            var query = _context.Transactions
+                .Include(t => t.TransactionDetails)
+                .ThenInclude(td => td.Category)
+                .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDateExclusive);
+
+            var transactions = await query.ToListAsync();
+
+            var groupedCategories = transactions
+                .Where(t => t.IsExpense)
+                .SelectMany(t => t.TransactionDetails)
+                .GroupBy(td => td.Category?.Name ?? "Khác")
+                .Select(g => new CategorySummaryItemDto
+                {
+                    Name = g.Key,
+                    TotalAmount = g.Sum(td => td.Price * td.Quantity)
+                })
+                .OrderByDescending(x => x.TotalAmount)
+                .ToList();
+
+            var totalAmountAll = groupedCategories.Sum(x => x.TotalAmount);
+
+            foreach (var item in groupedCategories)
+            {
+                item.Percentage = totalAmountAll > 0 ? Math.Round((item.TotalAmount / totalAmountAll) * 100, 2) : 0;
+            }
+
+            var response = new CategorySummaryResponseDto
+            {
+                Breakdown = groupedCategories,
+                TopCategory = groupedCategories.FirstOrDefault()
+            };
+
+            return response;
+        }
+
+        public async Task<List<BarChartDto>> GetTrendSummaryAsync(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var startDate = fromDate.Date;
+            var endDateExclusive = toDate.Date.AddDays(1);
+
+            var query = _context.Transactions
+                .Include(t => t.TransactionDetails)
+                .ThenInclude(td => td.Category)
+                .Where(t => t.UserId == userId && t.TransactionDate >= startDate && t.TransactionDate < endDateExclusive);
+
+            var transactions = await query.ToListAsync();
+
+            double daysDiff = (endDateExclusive - startDate).TotalDays;
+
+            if (daysDiff <= 1)
+            {
+                return BuildHourlyBarChart(transactions, startDate);
+            }
+            else if (daysDiff <= 31)
+            {
+                return BuildDailyBarChart(transactions, startDate, endDateExclusive);
+            }
+            else
+            {
+                return BuildMonthlyBarChart(transactions, startDate, endDateExclusive);
+            }
+        }
+
         private List<BarChartDto> BuildHourlyBarChart(List<Transaction> transactions, DateTime dayStart)
         {
             var aggregates = transactions
@@ -89,8 +157,8 @@ namespace BLL.Service
                     g => g.Key,
                     g => new
                     {
-                        Income = g.Sum(x => GetTransactionAmountByType(x, CategoryType.Income)),
-                        Expense = g.Sum(x => GetTransactionAmountByType(x, CategoryType.Expense))
+                        Income = g.Sum(x => GetTransactionAmount(x, false)),
+                        Expense = g.Sum(x => GetTransactionAmount(x, true))
                     });
 
             var result = new List<BarChartDto>();
@@ -116,8 +184,8 @@ namespace BLL.Service
                     g => g.Key,
                     g => new
                     {
-                        Income = g.Sum(x => GetTransactionAmountByType(x, CategoryType.Income)),
-                        Expense = g.Sum(x => GetTransactionAmountByType(x, CategoryType.Expense))
+                        Income = g.Sum(x => GetTransactionAmount(x, false)),
+                        Expense = g.Sum(x => GetTransactionAmount(x, true))
                     });
 
             var result = new List<BarChartDto>();
@@ -143,8 +211,8 @@ namespace BLL.Service
                     g => g.Key,
                     g => new
                     {
-                        Income = g.Sum(x => GetTransactionAmountByType(x, CategoryType.Income)),
-                        Expense = g.Sum(x => GetTransactionAmountByType(x, CategoryType.Expense))
+                        Income = g.Sum(x => GetTransactionAmount(x, false)),
+                        Expense = g.Sum(x => GetTransactionAmount(x, true))
                     });
 
             var result = new List<BarChartDto>();
@@ -167,10 +235,10 @@ namespace BLL.Service
             return result;
         }
 
-        private static decimal GetTransactionAmountByType(Transaction transaction, CategoryType categoryType)
+        private static decimal GetTransactionAmount(Transaction transaction, bool isExpense)
         {
+            if (transaction.IsExpense != isExpense) return 0m;
             return transaction.TransactionDetails
-                .Where(td => td.Category != null && td.Category.Type == categoryType)
                 .Sum(td => td.Price * td.Quantity);
         }
     }

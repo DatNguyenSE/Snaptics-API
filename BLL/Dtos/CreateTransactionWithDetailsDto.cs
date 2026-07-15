@@ -12,6 +12,7 @@ namespace BLL.Dtos
         public decimal TotalAmount { get; set; }
         public DateTime TransactionDate { get; set; }
         public string? Note { get; set; }
+        public bool IsExpense { get; set; } = true;
 
         public List<CreateTransactionDetailItemDto> Items { get; set; } = new();
     }

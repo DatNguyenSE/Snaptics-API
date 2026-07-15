@@ -18,6 +18,7 @@ namespace DAL.Entities
         public DateTime? EndDate { get; set; } = DateTime.UtcNow.AddYears(1);
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DAL.Enums.BudgetType Type { get; set; } = DAL.Enums.BudgetType.Spending;
 
         public virtual AppUser AppUser { get; set; }
 

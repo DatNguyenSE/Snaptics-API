@@ -10,7 +10,6 @@ namespace DAL.Entities
     {
         public int Id { get; set; }
         public string? Name { get; set; }
-        public CategoryType Type { get; set; } = CategoryType.Expense;
         public bool IsTrackableInventory { get; set; } = false;
         public string? Icon { get; set; } 
         public string? Color { get; set; } 
