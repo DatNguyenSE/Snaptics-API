@@ -11,8 +11,8 @@ namespace BLL.Interfaces.IServices
 
         Task<TransactionDto> CreateAsync(TransactionDto transactionDto);
         Task<TransactionDto> CreateWithDetailsAsync(CreateTransactionWithDetailsDto dto);
-        Task<TransactionDto> CreateFromBillAsync(string userId, BillReadResultDto billDto, string billImageKey);
-        Task<TransactionDto> CreateFromImageAnalyzeAsync(string userId, AnalyzeImageResponseDto imageDto, string ImageKey);
+        Task<TransactionDto> CreateFromBillAsync(string userId, BillReadResultDto billDto, string billImageKey, bool isExpense = true);
+        Task<TransactionDto> CreateFromImageAnalyzeAsync(string userId, AnalyzeImageResponseDto imageDto, string ImageKey, bool isExpense = true);
 
         Task<TransactionDto> UpdateAsync(int transactionId, TransactionDto transactionDto);
 

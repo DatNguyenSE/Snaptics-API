@@ -54,8 +54,11 @@ namespace API.Controllers
                 return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id },transaction);
         }
 
+        /// <summary>
+        /// Tạo giao dịch từ hóa đơn. Note: Tham số isExpense dùng để xác định giao dịch là Chi tiêu (true - mặc định) hay Thu nhập (false).
+        /// </summary>
         [HttpPost("from-bill")]
-        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromForm] BillReadResultDto billDto, IFormFile? image)
+        public async Task<ActionResult<TransactionDto>> CreateFromBill([FromForm] BillReadResultDto billDto, IFormFile? image, [FromForm] bool isExpense = true)
         {
             // Support Swagger and clients that send Items as a JSON string in a single form field
             if ((billDto.Items == null || !billDto.Items.Any()) && Request.HasFormContentType && Request.Form.TryGetValue("Items", out var itemsValues))
@@ -107,7 +110,7 @@ namespace API.Controllers
           
 
             var transaction =
-                await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey);
+                await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey, isExpense);
 
             return CreatedAtAction(
                 nameof(GetTransaction),
@@ -115,8 +118,11 @@ namespace API.Controllers
                 transaction);
         }
 
+        /// <summary>
+        /// Tạo giao dịch từ phân tích ảnh. Note: Tham số isExpense dùng để xác định giao dịch là Chi tiêu (true - mặc định) hay Thu nhập (false).
+        /// </summary>
         [HttpPost("from-analyze")]
-        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromForm] AnalyzeImageResponseDto data, IFormFile? image)
+        public async Task<ActionResult<TransactionDto>> CreateFromAnalyze([FromForm] AnalyzeImageResponseDto data, IFormFile? image, [FromForm] bool isExpense = true)
         {   
             var imageDto = data;
             if (imageDto == null || string.IsNullOrWhiteSpace(imageDto.ItemName))
@@ -132,7 +138,7 @@ namespace API.Controllers
 
             var imageKey = await _s3Service.UploadFileAsync(image, "analyze-images");
         
-            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey);
+            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey, isExpense);
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
 
