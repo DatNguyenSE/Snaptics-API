@@ -19,6 +19,8 @@ namespace DAL.Data
         public DbSet<ItemDictionary> ItemDictionaries { get; set; }
         public DbSet<Budget> Budgets { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<IncomeSource> IncomeSources { get; set; }
+        public DbSet<IncomeHistory> IncomeHistories { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

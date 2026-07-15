@@ -16,6 +16,7 @@ namespace DAL.Repositories
         private IItemDictionaryRepository? _itemDictionaryRepository;
         private IBudgetRepository? _budgetRepository;
         private INotificationRepository? _notificationRepository;
+        private IIncomeSourceRepository? _incomeSourceRepository;
 
         //when other function call (uow.ProductRepository) -> check and avoid create multiple instance
         public ICategoryRepository CategoryRepository => _categoryRepository 
@@ -37,6 +38,9 @@ namespace DAL.Repositories
 
         public INotificationRepository NotificationRepository => _notificationRepository
             ??= new NotificationRepository(_context);
+
+        public IIncomeSourceRepository IncomeSourceRepository => _incomeSourceRepository
+            ??= new IncomeSourceRepository(_context);
 
         public async Task<bool> Complete()
         {

@@ -11,6 +11,7 @@ namespace DAL.IRepositories
         IItemDictionaryRepository ItemDictionaryRepository { get; }
         IBudgetRepository BudgetRepository { get; }
         INotificationRepository NotificationRepository { get; }
+        IIncomeSourceRepository IncomeSourceRepository { get; }
         Task<bool> Complete();
         bool HasChange();
     }

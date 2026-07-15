@@ -22,5 +22,7 @@ namespace DAL.Entities
         // Navigation Properties 
         public virtual ICollection<DAL.Entities.Transaction> Transactions { get; set; } = new List<Transaction>();
         public virtual ICollection<ItemInventory> ItemInventories { get; set; } = new List<ItemInventory>();
+
+        public virtual ICollection<IncomeSource> IncomeSources { get; set; } = new List<IncomeSource>();
     }
 }
