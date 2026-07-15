@@ -140,5 +140,13 @@ namespace API.Controllers
             var result = await _dashboardService.GetTrendSummaryAsync(userId, fromDate, toDate);
             return Ok(result);
         }
+
+        [HttpGet("spending-comparison")]
+        public async Task<IActionResult> GetSpendingComparison()
+        {
+            var userId = User.GetUserId();
+            var result = await _dashboardService.GetSpendingComparisonAsync(userId);
+            return Ok(result);
+        }
     }
 }

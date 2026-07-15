@@ -149,6 +149,79 @@ namespace BLL.Service
             }
         }
 
+        public async Task<SpendingComparisonDto> GetSpendingComparisonAsync(string userId)
+        {
+            var now = DateTime.Now;
+            
+            // Week calculations
+            int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+            var currentWeekStart = now.Date.AddDays(-1 * diff);
+            var previousWeekStart = currentWeekStart.AddDays(-7);
+            
+            // Month calculations
+            var currentMonthStart = new DateTime(now.Year, now.Month, 1);
+            var previousMonthStart = currentMonthStart.AddMonths(-1);
+            
+            // Year calculations
+            var currentYearStart = new DateTime(now.Year, 1, 1);
+            var previousYearStart = currentYearStart.AddYears(-1);
+            
+            // The earliest date we need is previousYearStart
+            var earliestDate = previousYearStart;
+            var endDateExclusive = now.Date.AddDays(1);
+
+            var query = _context.Transactions
+                .Include(t => t.TransactionDetails)
+                .Where(t => t.UserId == userId && t.IsExpense && !t.IsDeleted && t.TransactionDate >= earliestDate && t.TransactionDate < endDateExclusive);
+
+            var transactions = await query.ToListAsync();
+
+            decimal GetAmount(DateTime start, DateTime endExclusive)
+            {
+                return transactions
+                    .Where(t => t.TransactionDate >= start && t.TransactionDate < endExclusive)
+                    .SelectMany(t => t.TransactionDetails)
+                    .Sum(td => td.Price * td.Quantity);
+            }
+
+            var currentWeekAmount = GetAmount(currentWeekStart, currentWeekStart.AddDays(7));
+            var previousWeekAmount = GetAmount(previousWeekStart, currentWeekStart);
+
+            var currentMonthAmount = GetAmount(currentMonthStart, currentMonthStart.AddMonths(1));
+            var previousMonthAmount = GetAmount(previousMonthStart, currentMonthStart);
+
+            var currentYearAmount = GetAmount(currentYearStart, currentYearStart.AddYears(1));
+            var previousYearAmount = GetAmount(previousYearStart, currentYearStart);
+
+            SpendingPeriodData CreateData(decimal current, decimal previous)
+            {
+                decimal percentage = 0;
+                if (previous > 0)
+                {
+                    percentage = Math.Round(((current - previous) / previous) * 100, 2);
+                }
+                else if (current > 0)
+                {
+                    percentage = 100;
+                }
+
+                return new SpendingPeriodData
+                {
+                    CurrentAmount = current,
+                    PreviousAmount = previous,
+                    PercentageChange = percentage,
+                    IsBetter = current <= previous
+                };
+            }
+
+            return new SpendingComparisonDto
+            {
+                Week = CreateData(currentWeekAmount, previousWeekAmount),
+                Month = CreateData(currentMonthAmount, previousMonthAmount),
+                Year = CreateData(currentYearAmount, previousYearAmount)
+            };
+        }
+
         private List<BarChartDto> BuildHourlyBarChart(List<Transaction> transactions, DateTime dayStart)
         {
             var aggregates = transactions
