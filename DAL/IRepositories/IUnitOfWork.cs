@@ -12,6 +12,7 @@ namespace DAL.IRepositories
         IBudgetRepository BudgetRepository { get; }
         INotificationRepository NotificationRepository { get; }
         IIncomeSourceRepository IncomeSourceRepository { get; }
+        IIncomeHistoryRepository IncomeHistoryRepository { get; }
         Task<bool> Complete();
         bool HasChange();
     }

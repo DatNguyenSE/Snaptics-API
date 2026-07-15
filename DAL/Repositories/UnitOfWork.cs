@@ -17,6 +17,7 @@ namespace DAL.Repositories
         private IBudgetRepository? _budgetRepository;
         private INotificationRepository? _notificationRepository;
         private IIncomeSourceRepository? _incomeSourceRepository;
+        private IIncomeHistoryRepository? _incomeHistoryRepository;
 
         //when other function call (uow.ProductRepository) -> check and avoid create multiple instance
         public ICategoryRepository CategoryRepository => _categoryRepository 
@@ -41,6 +42,9 @@ namespace DAL.Repositories
 
         public IIncomeSourceRepository IncomeSourceRepository => _incomeSourceRepository
             ??= new IncomeSourceRepository(_context);
+
+        public IIncomeHistoryRepository IncomeHistoryRepository => _incomeHistoryRepository
+            ??= new IncomeHistoryRepository(_context);
 
         public async Task<bool> Complete()
         {
