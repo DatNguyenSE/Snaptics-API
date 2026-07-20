@@ -17,14 +17,10 @@ namespace DAL.Entities
         // Số tiền mỗi lần nhận
         public decimal Amount { get; set; }
 
-        // Loại thu nhập
-        public IncomeType Type { get; set; }
 
         // Có lặp lại ko
         public bool IsRecurring { get; set; }
 
-        // Weekly, Monthly, Yearly
-        public IncomeFrequency Frequency { get; set; }
 
         // Ví nhận tiền
         public int BudgetId { get; set; }

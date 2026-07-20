@@ -49,7 +49,6 @@ builder.Services.AddScoped<IMailService, EmailService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IAiInsightService, AiInsightService>();
 builder.Services.AddScoped<IIncomeSourceService, IncomeSourceService>();
-builder.Services.AddScoped<IIncomeJobService, IncomeJobService>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
@@ -169,12 +168,6 @@ using (var scope = app.Services.CreateScope())
         "cleanup-old-notifications-daily",
         job => job.CleanUpOldNotificationsAsync(),
         "0 2 * * *" 
-    );
-
-    recurringJobManager.AddOrUpdate<IIncomeJobService>(
-    "process-monthly-income",
-    job => job.ProcessRecurringIncomeAsync(),
-    "0 0 * * *"
     );
 }
 

@@ -15,11 +15,7 @@ namespace BLL.Dtos
 
         public decimal Amount { get; set; }
 
-        public IncomeType Type { get; set; }
-
         public bool IsRecurring { get; set; }
-
-        public IncomeFrequency Frequency { get; set; }
 
         public int BudgetId { get; set; }
 

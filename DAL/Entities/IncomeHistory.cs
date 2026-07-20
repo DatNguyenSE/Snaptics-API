@@ -8,7 +8,9 @@ namespace DAL.Entities
     {
         public int Id { get; set; }
 
-        public int IncomeSourceId { get; set; }
+        public int BudgetId { get; set; }
+
+        public int? IncomeSourceId { get; set; }
 
         public decimal Amount { get; set; }
 
@@ -16,6 +18,8 @@ namespace DAL.Entities
 
         public string? Note { get; set; }
 
-        public virtual IncomeSource IncomeSource { get; set; } = null!;
+        public virtual IncomeSource? IncomeSource { get; set; } = null!;
+
+        public virtual Budget Budget { get; set; } = null!;
     }
 }
