@@ -1,4 +1,5 @@
-﻿using BLL.Dtos;
+using API.Extensions;
+using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +15,26 @@ namespace API.Controllers
         {
             var incomes = await incomeSourceService.GetAllAsync();
             return Ok(incomes);
+        }
+
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<IncomeSourceDto>>> GetUserIncomeSources()
+        {
+            try
+            {
+                var userId = User.GetUserId();
+                if (userId == null)
+                {
+                    return Unauthorized("User ID not found in claims.");
+                }
+
+                var incomes = await incomeSourceService.GetByUserIdAsync(userId);
+                return Ok(incomes);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("{id}")]
@@ -33,13 +54,26 @@ namespace API.Controllers
         public async Task<ActionResult<IncomeSourceDto>> CreateIncomeSource(
             [FromBody] IncomeSourceDto dto)
         {
-            var result = await incomeSourceService.CreateAsync(dto);
+            var userId = User.GetUserId();
+            if (userId == null)
+            {
+                return Unauthorized("User ID not found in claims.");
+            }
 
-            return CreatedAtAction(
-                nameof(GetIncomeSource),
-                new { id = result.Id },
-                result
-            );
+            try
+            {
+                var result = await incomeSourceService.CreateAsync(userId, dto);
+
+                return CreatedAtAction(
+                    nameof(GetIncomeSource),
+                    new { id = result.Id },
+                    result
+                );
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]

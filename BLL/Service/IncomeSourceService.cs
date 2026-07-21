@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using DAL.IRepositories;
@@ -28,9 +28,10 @@ namespace BLL.Service
             return _mapper.Map<IEnumerable<IncomeSourceDto>>(incomes);
         }
 
-        public async Task<IncomeSourceDto> CreateAsync(IncomeSourceDto dto)
+        public async Task<IncomeSourceDto> CreateAsync(string userId, IncomeSourceDto dto)
         {
             var entity = _mapper.Map<DAL.Entities.IncomeSource>(dto);
+            entity.UserId = userId;
 
             await _uow.IncomeSourceRepository.AddAsync(entity);
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using DAL.Enums;
@@ -8,8 +8,6 @@ namespace BLL.Dtos
     public class IncomeSourceDto
     {
         public int Id { get; set; }
-
-        public string UserId { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;
 

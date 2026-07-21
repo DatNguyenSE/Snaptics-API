@@ -1,4 +1,4 @@
-﻿using BLL.Dtos;
+using BLL.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -13,7 +13,7 @@ namespace BLL.Interfaces.IServices
 
         Task<IEnumerable<IncomeSourceDto>> GetByUserIdAsync(string userId);
 
-        Task<IncomeSourceDto> CreateAsync(IncomeSourceDto dto);
+        Task<IncomeSourceDto> CreateAsync(string userId, IncomeSourceDto dto);
 
         Task<IncomeSourceDto> UpdateAsync(int id, IncomeSourceDto dto);
 
