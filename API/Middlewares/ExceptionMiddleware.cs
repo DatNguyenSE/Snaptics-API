@@ -50,6 +50,10 @@ public class ExceptionMiddleware
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 break;
 
+            case GeminiApiException e:
+                context.Response.StatusCode = (int)e.StatusCode;
+                break;
+
             default: // Các lỗi khác, ta set status 500
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 response.Message = exception.Message;

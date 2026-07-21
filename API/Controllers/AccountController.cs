@@ -46,7 +46,8 @@ namespace API.Controllers
                 
                 var userBudget = new BudgetDto
                 {
-                    Name = "Default Budget",
+                    Name = "Mặc định",
+                    IsDefault = true,
                     StartDate = DateTime.Now,
                     CreatedAt = DateTime.Now,
                     IsActive = true

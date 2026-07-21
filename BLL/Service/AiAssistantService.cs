@@ -2,6 +2,7 @@ using BLL.AI;
 using BLL.Dtos;
 using BLL.Dtos.AiAssistantDto;
 using BLL.Interfaces.IServices;
+using BLL.Exceptions;
 using DAL.IRepositories;
 using System.Text;
 using System.Text.Json;
@@ -44,12 +45,19 @@ namespace BLL.Service
                     decimal amount = (decimal?)args["amount"] ?? 0;
                     string category = args["category"]?.ToString() ?? "Other";
                     string note = args["note"]?.ToString() ?? "Giao dịch AI";
+                    string dateStr = args["date"]?.ToString();
+                    
+                    DateTime transactionDate = DateTime.UtcNow;
+                    if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out DateTime parsedDate))
+                    {
+                        transactionDate = parsedDate;
+                    }
 
                     var dto = new CreateTransactionWithDetailsDto
                     {
                         UserId = userId,
                         TotalAmount = amount,
-                        TransactionDate = DateTime.UtcNow,
+                        TransactionDate = transactionDate,
                         MerchantName = "AI Assistant",
                         Note = note,
                         Items = new List<CreateTransactionDetailItemDto>
@@ -126,13 +134,10 @@ namespace BLL.Service
             var apiKey = _config["AiSettings:GeminiApiKey"]
                 ?? throw new InvalidOperationException("Thiếu AiSettings:GeminiApiKey trong cấu hình");
                 
-            var modelName = _config["AiSettings:GeminiModel"] ?? "gemini-1.5-flash";
+            var modelName = _config["AiSettings:GeminiModel"] ?? "gemini-flash-lite-latest";
             var apiVersion = _config["AiSettings:GeminiApiVersion"] ?? "v1beta";
 
             var endpoint = $"https://generativelanguage.googleapis.com/{apiVersion}/models/{modelName}:generateContent";
-
-            // URL có truyền API Key
-            var requestUrl = $"{endpoint}?key={apiKey}";
 
             var payload = new
             {
@@ -165,9 +170,10 @@ namespace BLL.Service
                                     {
                                         amount = new { type = "NUMBER", description = "Số tiền" },
                                         category = new { type = "STRING", description = "Danh mục bằng tiếng Anh, VD: Food, Transport, Shopping, Other..." },
-                                        note = new { type = "STRING", description = "Mô tả ngắn gọn" }
+                                        note = new { type = "STRING", description = "Mô tả ngắn gọn" },
+                                        date = new { type = "STRING", description = "Ngày thực hiện giao dịch (định dạng YYYY-MM-DD)" }
                                     },
-                                    required = new[] { "amount", "category", "note" }
+                                    required = new[] { "amount", "category", "note", "date" }
                                 }
                             },
                             new
@@ -189,10 +195,7 @@ namespace BLL.Service
                 }
             };
 
-            // Gửi thẳng vào Endpoint (không nối chuỗi query)
             var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            
-            // Cấp quyền bằng Header theo chuẩn của Google Gemini
             request.Headers.Add("x-goog-api-key", apiKey);
             
             // Gemini API dùng Content-Type application/json
@@ -207,7 +210,9 @@ namespace BLL.Service
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception($"Gemini API Error: {response.StatusCode}\n{responseString}");
+                throw new GeminiApiException(
+                    $"Gemini API Error: {response.StatusCode} | Model: {modelName}\n{responseString}",
+                    response.StatusCode);
             }
 
             return responseString;
