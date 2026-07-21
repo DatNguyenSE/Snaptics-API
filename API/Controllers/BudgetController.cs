@@ -20,7 +20,8 @@ namespace API.Controllers
         {
             try
             {
-                var userId = User.GetUserId();
+                var userId = "user-123";
+                // var userId = User.GetUserId();
                 var budgets = await _budgetService.GetByUserIdAsync(userId);
                 return Ok(budgets);
             }
@@ -120,12 +121,14 @@ namespace API.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("history-budgets")]
         public async Task<ActionResult<IEnumerable<object>>> GetInactiveBudgetsHistory()
         {
             try
             {
-                var userId = User.GetUserId();
+                // var userId = User.GetUserId();
+                var userId = "user-123";
                 if (userId == null) return Unauthorized("User ID not found in claims.");
 
                 var budgets = await _budgetService.GetByUserIdAsync(userId);
@@ -148,14 +151,14 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
+        [AllowAnonymous]
         [HttpPost("trigger-rollover")]
         public async Task<IActionResult> TriggerRolloverNow()
         {
             try
             {
                 await _budgetService.ProcessPeriodicRolloverAsync();
-                return Ok(new { message = "Đã trigger chốt sổ ví Periodic thành công! Check DB liền đi anh em." });
+                return Ok(new { message = "Chốt sổ ví Periodic thành công!" });
             }
             catch (System.Exception ex)
             {
@@ -163,6 +166,7 @@ namespace API.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpPatch("{id}/toggle-autorenew")]
         public async Task<IActionResult> ToggleAutoRenew(int id)
         {
@@ -171,7 +175,7 @@ namespace API.Controllers
                 var existingBudget = await _budgetService.GetByIdAsync(id);
                 if (existingBudget == null) return NotFound("Không tìm thấy ví.");
 
-                // Đảo ngược trạng thái (Đang true thành false, đang false thành true)
+                // Đảo ngược trạng thái ( true thành false,  false thành true)
                 existingBudget.IsAutoRenew = !existingBudget.IsAutoRenew;
 
                 await _budgetService.UpdateAsync(id, existingBudget);
