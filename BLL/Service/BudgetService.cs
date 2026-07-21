@@ -133,5 +133,73 @@ namespace BLL.Service
 
             return _mapper.Map<IEnumerable<TransactionDto>>(sortedHistory);
         }
+
+        public async Task ProcessPeriodicRolloverAsync()
+        {
+            var now = DateTime.UtcNow; // Xài UtcNow theo chuẩn entity của team ông
+
+            // Lấy tất cả ví lên để lọc
+            var allBudgets = await _uow.BudgetRepository.GetAllAsync();
+
+            // Tìm các ví Periodic hết hạn
+            var expiredBudgets = allBudgets.Where(b =>
+                b.IsActive &&
+                b.Type == DAL.Enums.BudgetType.Periodic &&
+                b.EndDate.HasValue &&
+                b.EndDate.Value.Date <= now.Date).ToList();
+
+            if (!expiredBudgets.Any()) return;
+
+            foreach (var oldBudget in expiredBudgets)
+            {
+                // Khóa ví cũ
+                oldBudget.IsActive = false;
+                _uow.BudgetRepository.Update(oldBudget);
+
+                if (!oldBudget.IsAutoRenew)
+                {
+                    continue;
+                }
+
+                // Tạo ví mới lưu setting ví cũ
+                var newBudget = new DAL.Entities.Budget
+                {
+                    UserId = oldBudget.UserId,
+                    Name = oldBudget.Name,
+                    Type = DAL.Enums.BudgetType.Periodic,
+                    Amount = oldBudget.Amount,
+                    CurrentAmount = oldBudget.Amount, // Reset lại bằng hạn mức gốc
+                    IsActive = true,
+                    StartDate = now,
+                    EndDate = now.AddMonths(1),
+                    PreviousBudgetId = oldBudget.Id
+                };
+
+                await _uow.BudgetRepository.AddAsync(newBudget);
+
+                await _uow.Complete();
+
+                // Lấy IncomeSource của ví cũ đẻ ra cho ví mới
+                var allOldIncomes = await _uow.IncomeHistoryRepository.GetAllAsync();
+                var oldIncomes = allOldIncomes.Where(x => x.BudgetId == oldBudget.Id && x.IncomeSourceId != null).ToList();
+
+                if (oldIncomes.Any())
+                {
+                    foreach (var oldIncome in oldIncomes)
+                    {
+                        var newHistory = new DAL.Entities.IncomeHistory
+                        {
+                            BudgetId = newBudget.Id, // Gắn vào ID của ví mới vừa tạo
+                            IncomeSourceId = oldIncome.IncomeSourceId,
+                            Amount = oldIncome.Amount,
+                            ReceivedDate = now,
+                            Note = oldIncome.Note
+                        };
+                        await _uow.IncomeHistoryRepository.AddAsync(newHistory);
+                    }
+                    await _uow.Complete(); // Lưu IncomeHistory
+                }
+            }
+        }
     }
 }

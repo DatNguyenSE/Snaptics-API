@@ -19,7 +19,8 @@ namespace DAL.Entities
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DAL.Enums.BudgetType Type { get; set; } = DAL.Enums.BudgetType.Spending;
-
+        public int? PreviousBudgetId { get; set; }
+        public bool IsAutoRenew { get; set; } = true;
         public virtual AppUser AppUser { get; set; }
 
         public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
