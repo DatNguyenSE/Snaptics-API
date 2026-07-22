@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -9,6 +9,7 @@ namespace DAL.Enums
         General = 0,
         MissingInfo = 1,
         UsageReview = 2,
-        Other = 3
+        Other = 3,
+        BudgetInvitation = 4
     }
 }

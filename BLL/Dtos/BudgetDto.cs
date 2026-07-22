@@ -15,5 +15,7 @@ namespace BLL.Dtos
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DAL.Enums.BudgetType Type { get; set; }
+        public int? PreviousBudgetId { get; set; }
+        public bool IsAutoRenew { get; set; } = true;
     }
 }

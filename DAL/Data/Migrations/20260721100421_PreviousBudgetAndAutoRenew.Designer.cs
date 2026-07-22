@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721100421_PreviousBudgetAndAutoRenew")]
+    partial class PreviousBudgetAndAutoRenew
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,7 +126,7 @@ namespace DAL.Data.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN",
-                            PasswordHash = "AQAAAAIAAYagAAAAEN4BnTUB+PLSTsx8kcG1NEc7uiU72118n1zI1TaRv3+z5lthSgJQAY3Y7eHN+0N9uQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEMVMwTVYAKkOAnk1NnkYcyYmya+fX8+nqZb17JzjqoLS1DyiRorduwPhQ3iRfSZSww==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "STATIC-GUID-SEC-12345",
                             Status = "Active",
@@ -185,42 +188,6 @@ namespace DAL.Data.Migrations
                     b.HasIndex("AppUserId");
 
                     b.ToTable("Budgets");
-                });
-
-            modelBuilder.Entity("DAL.Entities.BudgetMember", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BudgetId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("JoinedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("MemberId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BudgetId");
-
-                    b.HasIndex("MemberId");
-
-                    b.ToTable("BudgetMembers");
                 });
 
             modelBuilder.Entity("DAL.Entities.Category", b =>
@@ -704,25 +671,6 @@ namespace DAL.Data.Migrations
                     b.Navigation("AppUser");
                 });
 
-            modelBuilder.Entity("DAL.Entities.BudgetMember", b =>
-                {
-                    b.HasOne("DAL.Entities.Budget", "Budget")
-                        .WithMany("BudgetMembers")
-                        .HasForeignKey("BudgetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DAL.Entities.AppUser", "Member")
-                        .WithMany("SharedBudgets")
-                        .HasForeignKey("MemberId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Budget");
-
-                    b.Navigation("Member");
-                });
-
             modelBuilder.Entity("DAL.Entities.IncomeHistory", b =>
                 {
                     b.HasOne("DAL.Entities.Budget", "Budget")
@@ -876,15 +824,11 @@ namespace DAL.Data.Migrations
 
                     b.Navigation("ItemInventories");
 
-                    b.Navigation("SharedBudgets");
-
                     b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("DAL.Entities.Budget", b =>
                 {
-                    b.Navigation("BudgetMembers");
-
                     b.Navigation("IncomeSources");
 
                     b.Navigation("Transactions");

@@ -5,6 +5,7 @@ namespace DAL.Enums
     public enum BudgetType
     {
         Spending = 0,
-        Saving = 1
+        Saving = 1,
+        Periodic = 2
     }
 }

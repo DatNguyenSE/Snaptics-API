@@ -16,5 +16,6 @@ namespace BLL.Interfaces.IServices
 
         Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null);
         Task<IEnumerable<TransactionDto>> GetBudgetHistoryAsync(string userId, int budgetId);
+        Task ProcessPeriodicRolloverAsync();
     }
 }

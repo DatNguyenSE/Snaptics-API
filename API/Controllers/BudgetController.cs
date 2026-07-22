@@ -20,7 +20,8 @@ namespace API.Controllers
         {
             try
             {
-                var userId = User.GetUserId();
+                var userId = "user-123";
+                // var userId = User.GetUserId();
                 var budgets = await _budgetService.GetByUserIdAsync(userId);
                 return Ok(budgets);
             }
@@ -52,7 +53,7 @@ namespace API.Controllers
         public async Task<ActionResult<BudgetDto>> CreateBudget([FromBody] BudgetDto budgetDto)
         {
             var userId = User.GetUserId();
-            if(userId == null)
+            if (userId == null)
             {
                 return Unauthorized("User ID not found in claims.");
             }
@@ -117,6 +118,77 @@ namespace API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("history-budgets")]
+        public async Task<ActionResult<IEnumerable<object>>> GetInactiveBudgetsHistory()
+        {
+            try
+            {
+                // var userId = User.GetUserId();
+                var userId = "user-123";
+                if (userId == null) return Unauthorized("User ID not found in claims.");
+
+                var budgets = await _budgetService.GetByUserIdAsync(userId);
+
+                var history = budgets.Where(b => !b.IsActive).Select(b => new
+                {
+                    b.Id,
+                    b.Name,
+                    b.Amount,
+                    b.CurrentAmount,
+                    Month = b.StartDate.Month,
+                    Year = b.StartDate.Year,
+                    LinkedFromBudgetId = b.PreviousBudgetId
+                }).ToList();
+
+                return Ok(history);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost("trigger-rollover")]
+        public async Task<IActionResult> TriggerRolloverNow()
+        {
+            try
+            {
+                await _budgetService.ProcessPeriodicRolloverAsync();
+                return Ok(new { message = "Chốt sổ ví Periodic thành công!" });
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPatch("{id}/toggle-autorenew")]
+        public async Task<IActionResult> ToggleAutoRenew(int id)
+        {
+            try
+            {
+                var existingBudget = await _budgetService.GetByIdAsync(id);
+                if (existingBudget == null) return NotFound("Không tìm thấy ví.");
+
+                // Đảo ngược trạng thái ( true thành false,  false thành true)
+                existingBudget.IsAutoRenew = !existingBudget.IsAutoRenew;
+
+                await _budgetService.UpdateAsync(id, existingBudget);
+
+                return Ok(new
+                {
+                    message = existingBudget.IsAutoRenew ? "Đã BẬT gia hạn tự động" : "Đã TẮT gia hạn tự động",
+                    isAutoRenew = existingBudget.IsAutoRenew
+                });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
     }

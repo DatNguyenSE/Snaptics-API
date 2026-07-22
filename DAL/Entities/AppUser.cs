@@ -24,5 +24,7 @@ namespace DAL.Entities
         public virtual ICollection<ItemInventory> ItemInventories { get; set; } = new List<ItemInventory>();
 
         public virtual ICollection<IncomeSource> IncomeSources { get; set; } = new List<IncomeSource>();
+
+        public virtual ICollection<BudgetMember> SharedBudgets { get; set; } = new List<BudgetMember>();
     }
 }

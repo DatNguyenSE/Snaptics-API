@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Amazon.SimpleNotificationService;
+using BLL.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +42,7 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<ITransactionDetailService, TransactionDetailService>();
 builder.Services.AddScoped<IItemInventoryService, ItemInventoryService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddScoped<IBudgetMemberService, BudgetMemberService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IItemDictionaryService, ItemDictionaryService>();
 builder.Services.AddScoped<IS3Service, S3Service>();
