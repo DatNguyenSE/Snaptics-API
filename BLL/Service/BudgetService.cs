@@ -136,7 +136,7 @@ namespace BLL.Service
 
         public async Task ProcessPeriodicRolloverAsync()
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.UtcNow.AddHours(7);
 
             // Lấy tất cả ví lên để lọc
             var allBudgets = await _uow.BudgetRepository.GetAllAsync();

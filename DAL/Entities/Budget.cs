@@ -26,5 +26,7 @@ namespace DAL.Entities
         public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 
         public virtual ICollection<IncomeSource> IncomeSources { get; set; } = new List<IncomeSource>();
+
+        public virtual ICollection<BudgetMember> BudgetMembers { get; set; } = new List<BudgetMember>();
     }
 }

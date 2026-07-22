@@ -21,6 +21,7 @@ namespace DAL.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<IncomeSource> IncomeSources { get; set; }
         public DbSet<IncomeHistory> IncomeHistories { get; set; }
+        public DbSet<BudgetMember> BudgetMembers { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -72,6 +73,17 @@ namespace DAL.Data
             builder.Entity<Transaction>().Property(t => t.TotalAmount).HasPrecision(18, 2);
             builder.Entity<TransactionDetail>().Property(td => td.Price).HasPrecision(18, 2);
 
+            builder.Entity<BudgetMember>()
+                .HasOne(bm => bm.Budget)
+                .WithMany(b => b.BudgetMembers)
+                .HasForeignKey(bm => bm.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<BudgetMember>()
+                .HasOne(bm => bm.Member)
+                .WithMany(u => u.SharedBudgets)
+                .HasForeignKey(bm => bm.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
