@@ -180,24 +180,38 @@ namespace BLL.Service
                 await _uow.Complete();
 
                 // Lấy IncomeSource của ví cũ đẻ ra cho ví mới
-                var allOldIncomes = await _uow.IncomeHistoryRepository.GetAllAsync();
-                var oldIncomes = allOldIncomes.Where(x => x.BudgetId == oldBudget.Id && x.IncomeSourceId != null).ToList();
+                var allIncomeSources = await _uow.IncomeSourceRepository.GetAllAsync();
+                
+                // Lọc ra các nguồn thu thuộc về user này, nằm trong ví cũ, đang active và LÀ ĐỊNH KỲ
+                var recurringSources = allIncomeSources.Where(s =>
+                    s.UserId == oldBudget.UserId &&
+                    s.BudgetId == oldBudget.Id &&
+                    s.IsActive == true &&
+                    s.IsRecurring == true
+                ).ToList();
 
-                if (oldIncomes.Any())
+                if (recurringSources.Any())
                 {
-                    foreach (var oldIncome in oldIncomes)
+                    foreach (var source in recurringSources)
                     {
+                        // 1. Tạo lịch sử nhận tiền (IncomeHistory) cho ví mới
                         var newHistory = new DAL.Entities.IncomeHistory
                         {
                             BudgetId = newBudget.Id, // Gắn vào ID của ví mới vừa tạo
-                            IncomeSourceId = oldIncome.IncomeSourceId,
-                            Amount = oldIncome.Amount,
+                            IncomeSourceId = source.Id,
+                            Amount = source.Amount, // Lấy đúng số tiền setup sẵn ở nguồn thu
                             ReceivedDate = now,
-                            Note = oldIncome.Note
+                            Note = $"Thu nhập định kỳ tự động cộng từ: {source.Name}"
                         };
                         await _uow.IncomeHistoryRepository.AddAsync(newHistory);
+
+                        // 2. Bơm tiền thực tế vào CurrentAmount của ví mới
+                        newBudget.CurrentAmount += source.Amount;
                     }
-                    await _uow.Complete(); // Lưu IncomeHistory
+                    
+                    // 3. Update lại cái ví mới vì CurrentAmount đã thay đổi
+                    _uow.BudgetRepository.Update(newBudget);
+                    await _uow.Complete(); // Lưu toàn bộ (IncomeHistory + cập nhật Budget) xuống DB
                 }
             }
         }
