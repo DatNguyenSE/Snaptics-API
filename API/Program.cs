@@ -171,6 +171,12 @@ using (var scope = app.Services.CreateScope())
         job => job.CleanUpOldNotificationsAsync(),
         "0 2 * * *" 
     );
+
+    recurringJobManager.AddOrUpdate<IBudgetService>(
+        "process-periodic-rollover-daily",
+        job => job.ProcessPeriodicRolloverAsync(),
+        "0 0 * * *" 
+    );
 }
 
 
