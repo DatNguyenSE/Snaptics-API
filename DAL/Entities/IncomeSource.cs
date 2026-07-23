@@ -14,23 +14,20 @@ namespace DAL.Entities
         // Lương, Thưởng, Freelance,...
         public string Name { get; set; } = string.Empty;
 
-        // Số tiền mỗi lần nhận
+        // Số tiền mặc định mỗi lần nhận (đặc biệt cho nguồn thu định kỳ)
         public decimal Amount { get; set; }
 
-
-        // Có lặp lại ko
+        // Có lặp lại không
         public bool IsRecurring { get; set; }
 
-
-        // Ví nhận tiền
-        public int BudgetId { get; set; }
-
-        // Còn hoạt động ko
+        // Còn hoạt động không
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public virtual Budget Budget { get; set; } = null!;
         public virtual AppUser User { get; set; } = null!;
+
+        public virtual ICollection<BudgetIncomeSource> BudgetIncomeSources { get; set; }
+            = new List<BudgetIncomeSource>();
     }
 }

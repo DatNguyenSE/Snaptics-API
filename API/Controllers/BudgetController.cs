@@ -20,8 +20,8 @@ namespace API.Controllers
         {
             try
             {
-                var userId = "user-123";
-                // var userId = User.GetUserId();
+                var userId = User.GetUserId();
+                if (userId == null) return Unauthorized("User ID not found in claims.");
                 var budgets = await _budgetService.GetByUserIdAsync(userId);
                 return Ok(budgets);
             }
@@ -127,8 +127,7 @@ namespace API.Controllers
         {
             try
             {
-                // var userId = User.GetUserId();
-                var userId = "user-123";
+                var userId = User.GetUserId();
                 if (userId == null) return Unauthorized("User ID not found in claims.");
 
                 var budgets = await _budgetService.GetByUserIdAsync(userId);

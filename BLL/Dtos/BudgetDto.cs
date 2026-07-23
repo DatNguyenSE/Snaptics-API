@@ -17,5 +17,6 @@ namespace BLL.Dtos
         public DAL.Enums.BudgetType Type { get; set; }
         public int? PreviousBudgetId { get; set; }
         public bool IsAutoRenew { get; set; } = true;
+        public List<BudgetIncomeSourceDto> BudgetIncomeSources { get; set; } = [];
     }
 }

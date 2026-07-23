@@ -22,6 +22,7 @@ namespace API.Mappings
             CreateMap<Notification, NotificationDto>().ReverseMap();
             CreateMap<ItemDictionary, ItemDictionaryDto>().ReverseMap();
             CreateMap<IncomeSource, IncomeSourceDto>().ReverseMap();
+            CreateMap<BudgetIncomeSource, BudgetIncomeSourceDto>().ReverseMap();
         }
     }
 }
