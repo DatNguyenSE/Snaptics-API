@@ -223,8 +223,7 @@ namespace BLL.Service
                 // Lọc ra các nguồn thu thuộc về user này, đang active và LÀ ĐỊNH KỲ
                 var recurringSources = oldBudgetIncomeSources
                     .Select(bis => new { 
-                        IncomeSource = allIncomeSources.FirstOrDefault(s => s.Id == bis.IncomeSourceId),
-                        BisAmount = bis.Amount 
+                        IncomeSource = allIncomeSources.FirstOrDefault(s => s.Id == bis.IncomeSourceId)
                     })
                     .Where(x => x.IncomeSource != null && 
                                 x.IncomeSource.UserId == oldBudget.UserId && 
@@ -234,16 +233,23 @@ namespace BLL.Service
 
                 if (recurringSources.Any())
                 {
+                    // CẢI TIẾN: Tránh lỗi nhân đôi số dư (Double Funding)
+                    // Nếu ví có nguồn thu tự động bơm tiền vào, ta cần reset CurrentAmount về 0 trước, 
+                    // nếu không nó sẽ bị cộng dồn với oldBudget.Amount đã gán lúc khởi tạo newBudget.
+                    newBudget.CurrentAmount = 0;
+
                     foreach (var item in recurringSources)
                     {
                         var source = item.IncomeSource;
+                        // SỬA LỖI theo đúng ý bạn: Lấy Amount mới nhất trực tiếp từ IncomeSource
+                        var currentIncomeAmount = source.Amount; 
                         
                         // 1. Tạo liên kết BudgetIncomeSource cho ví mới
                         var newBudgetIncomeSource = new DAL.Entities.BudgetIncomeSource
                         {
                             BudgetId = newBudget.Id,
                             IncomeSourceId = source.Id,
-                            Amount = item.BisAmount // Giữ nguyên số tiền setup cho ví
+                            Amount = currentIncomeAmount // Lưu snapshot giá trị mới nhất
                         };
                         await _uow.BudgetIncomeSourceRepository.AddAsync(newBudgetIncomeSource);
 
@@ -252,19 +258,19 @@ namespace BLL.Service
                         {
                             BudgetId = newBudget.Id, // Gắn vào ID của ví mới vừa tạo
                             IncomeSourceId = source.Id,
-                            Amount = item.BisAmount, // Lấy đúng số tiền từ liên kết
+                            Amount = currentIncomeAmount, // Nạp bằng đúng số tiền MỚI NHẤT
                             ReceivedDate = now,
                             Note = $"Thu nhập định kỳ tự động cộng từ: {source.Name}"
                         };
                         await _uow.IncomeHistoryRepository.AddAsync(newHistory);
 
                         // 3. Bơm tiền thực tế vào CurrentAmount của ví mới
-                        newBudget.CurrentAmount += item.BisAmount;
+                        newBudget.CurrentAmount += currentIncomeAmount;
                     }
                     
                     // 4. Update lại cái ví mới vì CurrentAmount đã thay đổi
                     _uow.BudgetRepository.Update(newBudget);
-                    await _uow.Complete(); // Lưu toàn bộ (BudgetIncomeSource + IncomeHistory + cập nhật Budget) xuống DB
+                    await _uow.Complete(); // Lưu toàn bộ xuống DB
                 }
             }
         }

@@ -155,11 +155,7 @@ using (var scope = app.Services.CreateScope())
 {
     var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
     
-    recurringJobManager.AddOrUpdate<IMissingPriceJob>(
-        "remind-missing-price-daily",
-        job => job.ScanAndSendNotificationAsync(),
-        "0 20 * * *" 
-    );
+    recurringJobManager.RemoveIfExists("remind-missing-price-daily");
 
     recurringJobManager.AddOrUpdate<IItemReviewJobService>(
         "remind-item-review-daily",

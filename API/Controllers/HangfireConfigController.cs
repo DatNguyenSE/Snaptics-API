@@ -1,4 +1,4 @@
-﻿using BLL.Dtos;
+using BLL.Dtos;
 using BLL.Service;
 using BLL.Interfaces.IServices;
 using Hangfire;
@@ -17,8 +17,13 @@ public class HangfireConfigController : ControllerBase
         _recurringJobManager = recurringJobManager;
     }
 
-    [HttpPost("missing-price")]
-    public IActionResult UpdateMissingPriceSchedule([FromBody]UpdateHangfireScheduleRequest request)
+
+    // ==========================================
+    // 1. TỰ ĐỘNG GIA HẠN VÍ (PERIODIC ROLLOVER)
+    // ==========================================
+
+    [HttpPost("periodic-rollover")]
+    public IActionResult UpdatePeriodicRolloverSchedule([FromBody] UpdateHangfireScheduleRequest request)
     {
         if (request.Hour < 0 || request.Hour > 23)
             return BadRequest("Hour must be between 0 and 23.");
@@ -28,17 +33,28 @@ public class HangfireConfigController : ControllerBase
 
         var cron = $"{request.Minute} {request.Hour} * * *";
 
-        _recurringJobManager.AddOrUpdate<IMissingPriceJob>(
-            "remind-missing-price-daily",
-            job => job.ScanAndSendNotificationAsync(),
+        _recurringJobManager.AddOrUpdate<IBudgetService>(
+            "process-periodic-rollover-daily",
+            job => job.ProcessPeriodicRolloverAsync(),
             cron);
 
         return Ok(new
         {
-            message = "Missing price schedule updated successfully.",
+            message = "Periodic rollover schedule updated successfully.",
             cron
         });
     }
+
+    [HttpPost("trigger/periodic-rollover")]
+    public async Task<IActionResult> TriggerPeriodicRolloverNow([FromServices] IBudgetService budgetService)
+    {
+        await budgetService.ProcessPeriodicRolloverAsync();
+        return Ok(new { message = "Periodic rollover executed successfully." });
+    }
+
+    // ==========================================
+    // 2. NHẮC NHỞ ĐÁNH GIÁ MÓN ĐỒ (ITEM REVIEW)
+    // ==========================================
 
     [HttpPost("item-review")]
     public IActionResult UpdateItemReviewSchedule([FromBody] UpdateHangfireScheduleRequest request)
@@ -63,6 +79,18 @@ public class HangfireConfigController : ControllerBase
         });
     }
 
+    [HttpPost("trigger/item-review")]
+    public async Task<IActionResult> TriggerItemReviewNow([FromServices] IItemReviewJobService itemReviewService)
+    {
+        // Truyền 30 ngày giống như config của Hangfire đang dùng
+        await itemReviewService.ScanAndSendNotificationAsync(30);
+        return Ok(new { message = "Item review check executed successfully." });
+    }
+
+    // ==========================================
+    // 3. DỌN DẸP THÔNG BÁO CŨ (CLEANUP NOTIFICATIONS)
+    // ==========================================
+
     [HttpPost("cleanup")]
     public IActionResult UpdateCleanupSchedule([FromBody] UpdateHangfireScheduleRequest request)
     {
@@ -84,5 +112,12 @@ public class HangfireConfigController : ControllerBase
             message = "Cleanup schedule updated successfully.",
             cron
         });
+    }
+
+    [HttpPost("trigger/cleanup")]
+    public async Task<IActionResult> TriggerCleanupNow([FromServices] INotificationService notificationService)
+    {
+        await notificationService.CleanUpOldNotificationsAsync();
+        return Ok(new { message = "Old notifications cleanup executed successfully." });
     }
 }
