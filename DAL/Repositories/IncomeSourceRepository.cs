@@ -11,7 +11,6 @@ namespace DAL.Repositories
         public async Task<IEnumerable<IncomeSource>> GetByUserIdAsync(string userId)
         {
             return await _dbSet
-                .Include(x => x.Budget)
                 .Where(x => x.UserId == userId)
                 .ToListAsync();
         }
@@ -19,7 +18,6 @@ namespace DAL.Repositories
         public override async Task<IncomeSource?> GetByIdAsync(int id)
         {
             return await _dbSet
-                .Include(x => x.Budget)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
     }

@@ -57,10 +57,32 @@ namespace BLL.Service
                 }
             }
             var entity = _mapper.Map<DAL.Entities.Budget>(budgetDto);
-            entity.CurrentAmount = budgetDto.Amount;
+
             entity.UserId = userId;
+
+            // Tính tổng tiền từ các IncomeSource
+            var total = budgetDto.BudgetIncomeSources.Sum(x => x.Amount);
+
+            entity.Amount = total;
+            entity.CurrentAmount = total;
+
+            // Lưu Budget trước để có Id
             await _uow.BudgetRepository.AddAsync(entity);
             await _uow.Complete();
+
+            // Lưu BudgetIncomeSource
+            foreach (var item in budgetDto.BudgetIncomeSources)
+            {
+                await _uow.BudgetIncomeSourceRepository.AddAsync(new DAL.Entities.BudgetIncomeSource
+                {
+                    BudgetId = entity.Id,
+                    IncomeSourceId = item.IncomeSourceId,
+                    Amount = item.Amount
+                });
+            }
+
+            await _uow.Complete();
+
             return _mapper.Map<BudgetDto>(entity);
         }
 

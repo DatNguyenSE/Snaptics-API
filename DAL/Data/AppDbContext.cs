@@ -23,6 +23,8 @@ namespace DAL.Data
         public DbSet<IncomeHistory> IncomeHistories { get; set; }
         public DbSet<BudgetMember> BudgetMembers { get; set; }
 
+        public DbSet<BudgetIncomeSource> BudgetIncomeSources { get; set; }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
@@ -83,6 +85,18 @@ namespace DAL.Data
                 .HasOne(bm => bm.Member)
                 .WithMany(u => u.SharedBudgets)
                 .HasForeignKey(bm => bm.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<BudgetIncomeSource>()
+                .HasOne(bis => bis.Budget)
+                .WithMany(b => b.BudgetIncomeSources)
+                .HasForeignKey(bis => bis.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<BudgetIncomeSource>()
+                .HasOne(bis => bis.IncomeSource)
+                .WithMany(i => i.BudgetIncomeSources)
+                .HasForeignKey(bis => bis.IncomeSourceId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }
