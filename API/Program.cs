@@ -51,6 +51,7 @@ builder.Services.AddScoped<IMailService, EmailService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IAiInsightService, AiInsightService>();
 builder.Services.AddScoped<IIncomeSourceService, IncomeSourceService>();
+builder.Services.AddScoped<IBudgetIncomeSourceService, BudgetIncomeSourceService>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
