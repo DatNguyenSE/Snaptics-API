@@ -98,6 +98,18 @@ namespace BLL.Service
             {
                 throw new KeyNotFoundException("Budget not found");
             }
+
+            if (budgetDto.IsDefault)
+            {
+                var userBudgets = await _uow.BudgetRepository.GetByUserIdAsync(existingEntity.UserId);
+                var oldDefaults = userBudgets.Where(b => b.IsDefault && b.Id != id).ToList();
+                foreach (var old in oldDefaults)
+                {
+                    old.IsDefault = false;
+                    _uow.BudgetRepository.Update(old);
+                }
+            }
+
             _mapper.Map(budgetDto, existingEntity);
             _uow.BudgetRepository.Update(existingEntity);
             await _uow.Complete();
@@ -111,7 +123,8 @@ namespace BLL.Service
             {
                 throw new KeyNotFoundException("Budget not found");
             }
-            _uow.BudgetRepository.Delete(existingEntity);
+            existingEntity.IsActive = false;
+            _uow.BudgetRepository.Update(existingEntity);
             await _uow.Complete();
             return _mapper.Map<BudgetDto>(existingEntity);
         }
