@@ -10,5 +10,6 @@ namespace BLL.Dtos
         public int BudgetId { get; set; }
         public int IncomeSourceId { get; set; }
         public decimal Amount { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }
