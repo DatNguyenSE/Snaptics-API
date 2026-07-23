@@ -7,5 +7,7 @@ namespace DAL.IRepositories
 {
     public interface IBudgetIncomeSourceRepository : IGenericRepository<BudgetIncomeSource>
     {
+        Task<IEnumerable<BudgetIncomeSource>> GetByBudgetIdAsync(int budgetId);
+        Task<BudgetIncomeSource?> GetByIdAsync(int id);
     }
 }
