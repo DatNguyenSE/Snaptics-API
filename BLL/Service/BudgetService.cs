@@ -214,39 +214,57 @@ namespace BLL.Service
 
                 await _uow.Complete();
 
-                // Lấy IncomeSource của ví cũ đẻ ra cho ví mới
+                // Tìm các liên kết BudgetIncomeSource của ví cũ
+                var allBudgetIncomeSources = await _uow.BudgetIncomeSourceRepository.GetAllAsync();
+                var oldBudgetIncomeSources = allBudgetIncomeSources.Where(bis => bis.BudgetId == oldBudget.Id).ToList();
+
                 var allIncomeSources = await _uow.IncomeSourceRepository.GetAllAsync();
                 
-                // Lọc ra các nguồn thu thuộc về user này, nằm trong ví cũ, đang active và LÀ ĐỊNH KỲ
-                var recurringSources = allIncomeSources.Where(s =>
-                    s.UserId == oldBudget.UserId &&
-                    s.BudgetId == oldBudget.Id &&
-                    s.IsActive == true &&
-                    s.IsRecurring == true
-                ).ToList();
+                // Lọc ra các nguồn thu thuộc về user này, đang active và LÀ ĐỊNH KỲ
+                var recurringSources = oldBudgetIncomeSources
+                    .Select(bis => new { 
+                        IncomeSource = allIncomeSources.FirstOrDefault(s => s.Id == bis.IncomeSourceId),
+                        BisAmount = bis.Amount 
+                    })
+                    .Where(x => x.IncomeSource != null && 
+                                x.IncomeSource.UserId == oldBudget.UserId && 
+                                x.IncomeSource.IsActive == true && 
+                                x.IncomeSource.IsRecurring == true)
+                    .ToList();
 
                 if (recurringSources.Any())
                 {
-                    foreach (var source in recurringSources)
+                    foreach (var item in recurringSources)
                     {
-                        // 1. Tạo lịch sử nhận tiền (IncomeHistory) cho ví mới
+                        var source = item.IncomeSource;
+                        
+                        // 1. Tạo liên kết BudgetIncomeSource cho ví mới
+                        var newBudgetIncomeSource = new DAL.Entities.BudgetIncomeSource
+                        {
+                            BudgetId = newBudget.Id,
+                            IncomeSourceId = source.Id,
+                            Amount = item.BisAmount // Giữ nguyên số tiền setup cho ví
+                        };
+                        await _uow.BudgetIncomeSourceRepository.AddAsync(newBudgetIncomeSource);
+
+                        // 2. Tạo lịch sử nhận tiền (IncomeHistory) cho ví mới
                         var newHistory = new DAL.Entities.IncomeHistory
                         {
                             BudgetId = newBudget.Id, // Gắn vào ID của ví mới vừa tạo
                             IncomeSourceId = source.Id,
-                            Amount = source.Amount, // Lấy đúng số tiền setup sẵn ở nguồn thu
+                            Amount = item.BisAmount, // Lấy đúng số tiền từ liên kết
                             ReceivedDate = now,
                             Note = $"Thu nhập định kỳ tự động cộng từ: {source.Name}"
                         };
                         await _uow.IncomeHistoryRepository.AddAsync(newHistory);
 
-                        // 2. Bơm tiền thực tế vào CurrentAmount của ví mới
-                        newBudget.CurrentAmount += source.Amount;
+                        // 3. Bơm tiền thực tế vào CurrentAmount của ví mới
+                        newBudget.CurrentAmount += item.BisAmount;
                     }
                     
-                    // 3. Update lại cái ví mới vì CurrentAmount đã thay đổi
+                    // 4. Update lại cái ví mới vì CurrentAmount đã thay đổi
                     _uow.BudgetRepository.Update(newBudget);
-                    await _uow.Complete(); // Lưu toàn bộ (IncomeHistory + cập nhật Budget) xuống DB
+                    await _uow.Complete(); // Lưu toàn bộ (BudgetIncomeSource + IncomeHistory + cập nhật Budget) xuống DB
                 }
             }
         }

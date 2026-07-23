@@ -150,7 +150,6 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [AllowAnonymous]
         [HttpPost("trigger-rollover")]
         public async Task<IActionResult> TriggerRolloverNow()
         {
@@ -165,7 +164,6 @@ namespace API.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPatch("{id}/toggle-autorenew")]
         public async Task<IActionResult> ToggleAutoRenew(int id)
         {
