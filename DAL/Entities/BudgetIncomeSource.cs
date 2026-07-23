@@ -18,5 +18,7 @@ namespace DAL.Entities
         public virtual Budget Budget { get; set; } = null!;
 
         public virtual IncomeSource IncomeSource { get; set; } = null!;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
