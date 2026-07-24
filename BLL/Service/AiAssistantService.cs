@@ -45,21 +45,76 @@ namespace BLL.Service
                     decimal amount = (decimal?)args["amount"] ?? 0;
                     string category = args["category"]?.ToString() ?? "Other";
                     string note = args["note"]?.ToString() ?? "Giao dịch AI";
-                    string dateStr = args["date"]?.ToString();
+                    string? dateStr = args["date"]?.ToString();
                     
-                    DateTime transactionDate = DateTime.UtcNow;
+                    var nowInVietnam = DateTime.UtcNow.AddHours(7);
+                    DateTime transactionDate = nowInVietnam;
+
                     if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out DateTime parsedDate))
                     {
-                        transactionDate = parsedDate;
+                        if (parsedDate.TimeOfDay == TimeSpan.Zero)
+                        {
+                            // Nếu Gemini chỉ trả về ngày YYYY-MM-DD (chưa có giờ), kết hợp Ngày từ ngữ cảnh + Giờ/Phút hiện tại
+                            transactionDate = parsedDate.Date.Add(nowInVietnam.TimeOfDay);
+                        }
+                        else
+                        {
+                            // Nếu người dùng có nói rõ giờ (vd: 8h tối qua), dùng chính xác ngày giờ đó
+                            transactionDate = parsedDate;
+                        }
+                    }
+
+                    string? walletName = args["wallet_name"]?.ToString();
+                    int? targetBudgetId = null;
+                    DAL.Entities.Budget? matchedBudget = null;
+
+                    if (!string.IsNullOrWhiteSpace(walletName))
+                    {
+                        var normalizedWalletName = walletName.Trim().ToLower();
+
+                        var ownBudgets = (await _uow.BudgetRepository.GetByUserIdAsync(userId)).ToList();
+
+                        var sharedBudgetMembers = await _uow.BudgetMemberRepository.GetSharedBudgetsByUserIdAsync(userId);
+                        
+                        var validSharedBudgets = sharedBudgetMembers
+                            .Where(bm => bm.Status == DAL.Enums.InvitationStatus.Accepted 
+                                      && bm.Role == DAL.Enums.BudgetRole.Editor)
+                            .Select(bm => bm.Budget)
+                            .ToList();
+
+                        var allValidBudgets = ownBudgets.Concat(validSharedBudgets).ToList();
+
+                        matchedBudget = allValidBudgets.FirstOrDefault(b => 
+                            b != null && b.Name != null && b.Name.ToLower().Contains(normalizedWalletName));
+
+                        if (matchedBudget != null)
+                        {
+                            targetBudgetId = matchedBudget.Id;
+                        }
+                        else
+                        {
+                            return new AskAiResponseDto 
+                            { 
+                                Reply = $"❌ Giao dịch chưa được lưu! Mình không tìm thấy ví nào tên là '{walletName}'. Bạn hãy kiểm tra lại nhé." 
+                            };
+                        }
+                    }
+
+                    bool isExpense = true;
+                    if (args["is_expense"] != null && bool.TryParse(args["is_expense"]!.ToString(), out bool parsedIsExpense))
+                    {
+                        isExpense = parsedIsExpense;
                     }
 
                     var dto = new CreateTransactionWithDetailsDto
                     {
+                        BudgetId = targetBudgetId,
                         UserId = userId,
                         TotalAmount = amount,
                         TransactionDate = transactionDate,
-                        MerchantName = "AI Assistant",
-                        Note = note,
+                        MerchantName = note,
+                        Note = "Nhập nhanh",
+                        IsExpense = isExpense,
                         Items = new List<CreateTransactionDetailItemDto>
                         {
                             new CreateTransactionDetailItemDto
@@ -72,10 +127,17 @@ namespace BLL.Service
                         }
                     };
 
+                    string? usedWalletName = matchedBudget?.Name;
+                    if (string.IsNullOrEmpty(usedWalletName))
+                    {
+                        var ownBudgets = await _uow.BudgetRepository.GetByUserIdAsync(userId);
+                        usedWalletName = ownBudgets.FirstOrDefault(b => b.IsDefault)?.Name ?? "mặc định";
+                    }
+
                     await _transactionService.CreateWithDetailsAsync(dto);
                     
                     // Câu trả lời thân thiện dựa theo ngữ cảnh
-                    string reply = GetFriendlyReply(category, amount, note);
+                    string reply = GetFriendlyReply(category, amount, note, usedWalletName, isExpense);
 
                     return new AskAiResponseDto { Reply = reply };
                 }
@@ -171,9 +233,11 @@ namespace BLL.Service
                                         amount = new { type = "NUMBER", description = "Số tiền" },
                                         category = new { type = "STRING", description = "Danh mục bằng tiếng Anh, VD: Food, Transport, Shopping, Other..." },
                                         note = new { type = "STRING", description = "Mô tả ngắn gọn" },
-                                        date = new { type = "STRING", description = "Ngày thực hiện giao dịch (định dạng YYYY-MM-DD)" }
+                                        date = new { type = "STRING", description = "Ngày/giờ thực hiện giao dịch (định dạng YYYY-MM-DD hoặc YYYY-MM-DD HH:mm:ss nếu người dùng nói rõ giờ cụ thể)." },
+                                        wallet_name = new { type = "STRING", description = "Tên ví/nguồn tiền (ví dụ: momo, tiền ăn sinh hoạt, tiền mặt). Loại bỏ từ phụ như 'ở ví', 'trừ vào ví'. Trả về null nếu không có." },
+                                        is_expense = new { type = "BOOLEAN", description = "true nếu là khoản chi tiêu/trừ tiền (ăn uống, mua đồ...), false nếu là khoản thu nhập/nhận tiền/cộng tiền (được thưởng, nhận lương, quà tặng...)." }
                                     },
-                                    required = new[] { "amount", "category", "note", "date" }
+                                    required = new[] { "amount", "category", "note", "date", "is_expense" }
                                 }
                             },
                             new
@@ -218,9 +282,19 @@ namespace BLL.Service
             return responseString;
         }
 
-        private string GetFriendlyReply(string category, decimal amount, string note)
+        private string GetFriendlyReply(string category, decimal amount, string note, string walletName, bool isExpense = true)
         {
             var random = new Random();
+
+            if (!isExpense)
+            {
+                var incomeReplies = new[] {
+                    $"🎉 Tuyệt vời! Đã cộng **{amount:N0}đ** ({note}) vào ví **\"{walletName}\"**. Thu nhập rủng rỉnh nha! 💰✨",
+                    $"✅ Đã ghi nhận khoản thu nhập **{note} (+{amount:N0}đ)** vào ví **\"{walletName}\"**. Ting ting! 💸🚀"
+                };
+                return incomeReplies[random.Next(incomeReplies.Length)];
+            }
+
             string lowerCategory = category.ToLower();
 
             if (lowerCategory.Contains("food") || lowerCategory.Contains("eat") || lowerCategory.Contains("ăn"))
@@ -228,24 +302,24 @@ namespace BLL.Service
                 if (amount < 200000)
                 {
                     var replies = new[] {
-                        $"✅ Đã ghi nhận khoản **{note} ({amount:N0}đ)**. Ăn uống nạp năng lượng là chuẩn bài rồi! 🍜✨",
-                        $"Đã trừ **{amount:N0}đ** tiền **{note}**. Chúc bạn bữa ăn ngon miệng nhé! 😋"
+                        $"✅ Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. Ăn uống nạp năng lượng là chuẩn bài rồi! 🍜✨",
+                        $"Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. Chúc bạn bữa ăn ngon miệng nhé! 😋"
                     };
                     return replies[random.Next(replies.Length)];
                 }
                 else if (amount < 1000000)
                 {
                     var replies = new[] {
-                        $"Wow, bữa nay ăn uống thịnh soạn ghê! Đã ghi nhận khoản **{note} ({amount:N0}đ)** nha. 🍣🥂",
-                        $"Đã lưu khoản **{note} ({amount:N0}đ)**. Ăn ngon mặc đẹp nhưng nhớ để ý hầu bao chút nha sếp! 🫣💸"
+                        $"Wow, bữa nay ăn uống thịnh soạn ghê! Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"** nha. 🍣🥂",
+                        $"Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. Ăn ngon mặc đẹp nhưng nhớ để ý hầu bao chút nha sếp! 🫣💸"
                     };
                     return replies[random.Next(replies.Length)];
                 }
                 else
                 {
                     var replies = new[] {
-                        $"Đỉnh quá! Bữa ăn **{note}** hết **{amount:N0}đ** luôn. Chắc là một dịp đặc biệt lắm đây! Đã ghi sổ nhé. 🎉🦞",
-                        $"Ting ting! Đã trừ **{amount:N0}đ** tiền **{note}**. Ăn uống xả láng, ráng cày lại bù vào nha! 😱🔥"
+                        $"Đỉnh quá! Bữa ăn **{note}** hết **{amount:N0}đ** đã được trừ vào ví **\"{walletName}\"**. Chắc là một dịp đặc biệt lắm đây! 🎉🦞",
+                        $"Ting ting! Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. Ăn uống xả láng, ráng cày lại bù vào nha! 😱🔥"
                     };
                     return replies[random.Next(replies.Length)];
                 }
@@ -255,24 +329,24 @@ namespace BLL.Service
                 if (amount < 2000000)
                 {
                     var replies = new[] {
-                        $"✅ Đã lưu khoản **{note} ({amount:N0}đ)** vào mục **{category}**. Chi tiêu vui vẻ nhé! 🛒✨",
-                        $"Đã ghi nhận khoản **{note} ({amount:N0}đ)**. Khoản này hoàn toàn trong tầm kiểm soát! ✌️"
+                        $"✅ Đã trừ **{amount:N0}đ** cho **{note}** vào ví **\"{walletName}\"** (Danh mục: **{category}**). Chi tiêu vui vẻ nhé! 🛒✨",
+                        $"Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. Khoản này hoàn toàn trong tầm kiểm soát! ✌️"
                     };
                     return replies[random.Next(replies.Length)];
                 }
                 else if (amount < 10000000)
                 {
                     var replies = new[] {
-                        $"Chơi lớn luôn! Đã trừ **{amount:N0}đ** cho **{note}**. Lâu lâu tự thưởng cho bản thân cũng xứng đáng mà! ✈️🛍️",
-                        $"Đã ghi sổ khoản **{note} ({amount:N0}đ)**. Khoản chi này hơi to xíu, tháng này nhớ thắt lưng buộc bụng phần ăn uống nha! 😅📉"
+                        $"Chơi lớn luôn! Đã trừ **{amount:N0}đ** cho **{note}** vào ví **\"{walletName}\"**. Lâu lâu tự thưởng cho bản thân cũng xứng đáng mà! ✈️🛍️",
+                        $"Đã ghi sổ khoản **{note} ({amount:N0}đ)** vào ví **\"{walletName}\"**. Khoản chi này hơi to xíu, tháng này nhớ thắt lưng buộc bụng nha! 😅📉"
                     };
                     return replies[random.Next(replies.Length)];
                 }
                 else
                 {
                     var replies = new[] {
-                        $"Trời ơi, đại gia đây rồi! Khoản **{note}** lên tới **{amount:N0}đ**. Đã lưu cẩn thận vào sổ cho sếp! 👑💎",
-                        $"Xác nhận trừ **{amount:N0}đ** cho **{note}**! Một khoản chi cực khủng, chúc bạn có trải nghiệm tuyệt vời với số tiền này nhé! 🚀🔥"
+                        $"Trời ơi, đại gia đây rồi! Khoản **{note}** lên tới **{amount:N0}đ** đã trừ vào ví **\"{walletName}\"**. 👑💎",
+                        $"Xác nhận trừ **{amount:N0}đ** cho **{note}** vào ví **\"{walletName}\"**! Một khoản chi cực khủng! 🚀🔥"
                     };
                     return replies[random.Next(replies.Length)];
                 }
@@ -283,16 +357,16 @@ namespace BLL.Service
                 if (amount < 500000)
                 {
                     var replies = new[] {
-                        $"okie nha sếp! Khoản **{amount:N0}đ** cho **{note}** đã được lưu gọn gàng vào ví. 💳",
-                        $"✅ Đã xong! Mình vừa ghi sổ khoản **{note} ({amount:N0}đ)** vào danh mục **{category}** rồi nhé. 📝✨"
+                        $"okie nha sếp! Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. 💳",
+                        $"✅ Đã xong! Mình vừa ghi sổ khoản **{note} ({amount:N0}đ)** vào ví **\"{walletName}\"** (Danh mục: **{category}**) rồi nhé. 📝✨"
                     };
                     return replies[random.Next(replies.Length)];
                 }
                 else
                 {
                     var replies = new[] {
-                        $"Ting ting! Đã trừ **{amount:N0}đ** tiền **{note}**. Số tiền khá lớn, ráng cân đối ngân sách nhé! 🫣📉",
-                        $"Đã ghi nhận khoản lớn: **{note} ({amount:N0}đ)**. Mình đã đưa vào báo cáo tháng này rồi ạ! 📊"
+                        $"Ting ting! Đã trừ **{amount:N0}đ** tiền **{note}** vào ví **\"{walletName}\"**. Số tiền khá lớn, ráng cân đối ngân sách nhé! 🫣📉",
+                        $"Đã ghi nhận trừ **{amount:N0}đ** cho **{note}** vào ví **\"{walletName}\"**. Mình đã đưa vào báo cáo tháng này rồi ạ! 📊"
                     };
                     return replies[random.Next(replies.Length)];
                 }

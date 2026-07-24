@@ -14,7 +14,7 @@ namespace BLL.Interfaces.IServices
         Task<BudgetDto> UpdateAsync(int id, BudgetDto budgetDto);
         Task<BudgetDto> DeleteAsync(int id);
 
-        Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null);
+        Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null, bool isExpense = true);
         Task<IEnumerable<TransactionDto>> GetBudgetHistoryAsync(string userId, int budgetId);
         Task ProcessPeriodicRolloverAsync();
     }

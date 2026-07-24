@@ -129,7 +129,7 @@ namespace BLL.Service
             return _mapper.Map<BudgetDto>(existingEntity);
         }
 
-        public async Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null)
+        public async Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null, bool isExpense = true)
         {
             DAL.Entities.Budget targetBudget = null;
 
@@ -137,8 +137,27 @@ namespace BLL.Service
             {
                 // Chọn thủ công: Lấy đúng ví truyền vào
                 targetBudget = await _uow.BudgetRepository.GetByIdAsync(budgetId.Value);
-                if (targetBudget == null || targetBudget.UserId != userId || !targetBudget.IsActive)
+                if (targetBudget == null || !targetBudget.IsActive)
                     throw new Exception("Ví ngân sách không tồn tại hoặc đã bị khóa.");
+
+                bool isOwner = targetBudget.UserId == userId;
+                bool isAuthorizedMember = false;
+
+                if (!isOwner)
+                {
+                    var members = await _uow.BudgetMemberRepository.FindAsync(m => m.BudgetId == budgetId.Value && m.MemberId == userId);
+                    var member = members.FirstOrDefault();
+                        
+                    if (member != null && member.Role == DAL.Enums.BudgetRole.Editor && member.Status == DAL.Enums.InvitationStatus.Accepted)
+                    {
+                        isAuthorizedMember = true;
+                    }
+                }
+
+                if (!isOwner && !isAuthorizedMember)
+                {
+                    throw new Exception("Bạn không có quyền sử dụng ví ngân sách này.");
+                }
             }
             else
             {
@@ -150,8 +169,15 @@ namespace BLL.Service
                     throw new Exception("Không tìm thấy ví mặc định để tự động trừ tiền. Vui lòng thiết lập ví mặc định.");
             }
 
-            // 1. Trừ tiền số dư khả dụng
-            targetBudget.CurrentAmount -= amount;
+            // 1. Cập nhật số dư khả dụng (Trừ tiền nếu IsExpense = true, Cộng tiền nếu IsExpense = false)
+            if (isExpense)
+            {
+                targetBudget.CurrentAmount -= amount;
+            }
+            else
+            {
+                targetBudget.CurrentAmount += amount;
+            }
             _uow.BudgetRepository.Update(targetBudget);
 
             return targetBudget.Id;
@@ -160,8 +186,32 @@ namespace BLL.Service
 
         public async Task<IEnumerable<TransactionDto>> GetBudgetHistoryAsync(string userId, int budgetId)
         {
+            var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
+            if (budget == null)
+            {
+                throw new Exception("Ví ngân sách không tồn tại.");
+            }
+
+            bool isOwner = budget.UserId == userId;
+            bool isMember = false;
+
+            if (!isOwner)
+            {
+                var members = await _uow.BudgetMemberRepository.FindAsync(m => m.BudgetId == budgetId && m.MemberId == userId);
+                var member = members.FirstOrDefault();
+                if (member != null && member.Status == DAL.Enums.InvitationStatus.Accepted)
+                {
+                    isMember = true;
+                }
+            }
+
+            if (!isOwner && !isMember)
+            {
+                throw new Exception("Bạn không có quyền xem lịch sử giao dịch của ví ngân sách này.");
+            }
+
             var history = await _uow.TransactionRepository.FindAsync(
-            t => t.UserId == userId && t.BudgetId == budgetId && !t.IsDeleted
+                t => t.BudgetId == budgetId && !t.IsDeleted
             );
 
             var sortedHistory = history.OrderByDescending(t => t.TransactionDate).ToList();
