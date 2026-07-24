@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BLL.Service
 {
-    public class NotificationService(IUnitOfWork _uow, IMapper _mapper) : INotificationService
+    public class NotificationService(IUnitOfWork _uow, IMapper _mapper, ISignalRNotificationService _signalRNotificationService) : INotificationService
     {
         public async Task<IEnumerable<NotificationDto>> GetAllAsync()
         {
@@ -27,7 +27,11 @@ namespace BLL.Service
             var entity = _mapper.Map<DAL.Entities.Notification>(notificationDto);
             await _uow.NotificationRepository.AddAsync(entity);
             await _uow.Complete();
-            return _mapper.Map<NotificationDto>(entity);
+            
+            var resultDto = _mapper.Map<NotificationDto>(entity);
+            await _signalRNotificationService.SendNotificationAsync(resultDto.UserId, resultDto);
+            
+            return resultDto;
         }
 
         public async Task<NotificationDto> UpdateAsync(int id, NotificationDto notificationDto)

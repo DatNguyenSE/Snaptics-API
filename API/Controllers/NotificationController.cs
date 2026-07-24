@@ -1,9 +1,11 @@
-﻿using BLL.Dtos;
+using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+
+using API.Extensions;
 
 namespace API.Controllers
 {
@@ -11,10 +13,6 @@ namespace API.Controllers
     [Authorize]
     public class NotificationController(INotificationService _notificationService) : Controller
     {
-        private string GetUserId()
-        {
-            return "user-12345-mock-id";
-        }
 
         [HttpGet]
         [Authorize(Roles = "admin")]
@@ -79,7 +77,7 @@ namespace API.Controllers
         {
             try
             {
-                var userId = GetUserId(); 
+                var userId = User.GetUserId(); 
                 var notifications = await _notificationService.GetByUserIdAsync(userId);
                 return Ok(notifications);
             }

@@ -4,6 +4,7 @@ using API.Mappings;
 using API.Middlewares;
 using BLL.Interfaces.IServices;
 using BLL.Service;
+using API.Hubs;
 using Hangfire;
 using BLL.Configurations;
 
@@ -55,6 +56,10 @@ builder.Services.AddScoped<IBudgetIncomeSourceService, BudgetIncomeSourceService
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
+
+builder.Services.AddScoped<ISignalRNotificationService, SignalRNotificationService>();
+builder.Services.AddSignalR();
+
 builder.Services.AddHttpClient(); // Required for Gemini REST API calls
 builder.Services.AddMemoryCache(); // Required for ItemDictionary in-memory caching
 
@@ -185,5 +190,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notification");
 
 app.Run();
