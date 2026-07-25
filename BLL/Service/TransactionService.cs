@@ -87,7 +87,7 @@ namespace BLL.Service
                 }
             }
             // 5. Tạo entity Transaction
-            int usedBudgetId = await _budgetService.DeductMoneyAsync(dto.UserId, dto.TotalAmount, dto.BudgetId);
+            int usedBudgetId = await _budgetService.DeductMoneyAsync(dto.UserId, dto.TotalAmount, dto.BudgetId, dto.IsExpense);
             var transaction = new DAL.Entities.Transaction
             {
                 BudgetId = usedBudgetId,

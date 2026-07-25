@@ -117,7 +117,7 @@ namespace API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return BadRequest(new { message = ex.Message });
             }
         }
 
