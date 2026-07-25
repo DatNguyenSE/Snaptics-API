@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using DAL.Data;
@@ -11,6 +11,14 @@ namespace DAL.Repositories
     public class SupportMessageRepository(AppDbContext _context)
         : GenericRepository<SupportMessage>(_context), ISupportMessageRepository
     {
+        public async Task<SupportMessage?> GetWithDetailsAsync(int id)
+        {
+            return await _dbSet
+                .Include(m => m.Sender)
+                .Include(m => m.Attachments)
+                .FirstOrDefaultAsync(m => m.Id == id);
+        }
+
         public async Task<IEnumerable<SupportMessage>> GetByTicketIdAsync(int ticketId)
         {
             return await _dbSet
