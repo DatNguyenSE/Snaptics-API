@@ -157,8 +157,8 @@ builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
 builder.Services.AddSingleton(typeof(Amazon.SQS.IAmazonSQS), sp =>
 {
     var awsOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BLL.Configurations.AwsSettings>>().Value;
-    return new Amazon.SQS.AmazonSQSClient(
-        Amazon.RegionEndpoint.GetBySystemName(awsOptions.Region));
+    var region = string.IsNullOrEmpty(awsOptions.Region) ? "ap-southeast-1" : awsOptions.Region;
+    return new Amazon.SQS.AmazonSQSClient(Amazon.RegionEndpoint.GetBySystemName(region));
 });
 builder.Services.AddScoped<ISqsPublisherService, SqsPublisherService>();
 

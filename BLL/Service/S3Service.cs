@@ -21,7 +21,8 @@ namespace BLL.Service
         }
         public async Task<string> UploadFileAsync(IFormFile file, string customerName, string folder = "bills")
         {
-            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
             var extension = Path.GetExtension(file.FileName);
 
             var safeName = string.IsNullOrWhiteSpace(customerName)? "unknown": RemoveVietnamese(customerName).ToLower().Replace(" ", "");
@@ -42,7 +43,8 @@ namespace BLL.Service
 
         public Task<string> GeneratePresignedUrlAsync(string key, int expiryMinutes = 15)
         {
-            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
             var request = new GetPreSignedUrlRequest
             {
                 BucketName = _aws.BucketName,
@@ -54,7 +56,8 @@ namespace BLL.Service
 
         public async Task<byte[]> DownloadFileAsync(string key)
         {
-            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
             var request = new Amazon.S3.Model.GetObjectRequest
             {
                 BucketName = _aws.BucketName,
