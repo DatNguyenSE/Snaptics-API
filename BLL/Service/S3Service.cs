@@ -30,9 +30,10 @@ namespace BLL.Service
             var fileName = $"{folder}/{safeName}_{DateTime.Now:dd-MM-yyyy_HH-mm-ss}{extension}";
 
             using var  stream = file.OpenReadStream();
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
             var request = new PutObjectRequest
             {
-                BucketName = _aws.BucketName,
+                BucketName = bucketName,
                 Key = fileName,
                 InputStream = stream,
                 ContentType = file.ContentType
@@ -45,9 +46,10 @@ namespace BLL.Service
         {
             var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
             var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
             var request = new GetPreSignedUrlRequest
             {
-                BucketName = _aws.BucketName,
+                BucketName = bucketName,
                 Key = key,
                 Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)
             };
@@ -58,9 +60,10 @@ namespace BLL.Service
         {
             var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
             var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
             var request = new Amazon.S3.Model.GetObjectRequest
             {
-                BucketName = _aws.BucketName,
+                BucketName = bucketName,
                 Key = key
             };
 
