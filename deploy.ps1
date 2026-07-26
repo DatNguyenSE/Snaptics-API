@@ -21,7 +21,7 @@ docker push 923988301802.dkr.ecr.ap-southeast-1.amazonaws.com/snaptics-api:lates
 
 # 5. Khởi động lại Server
 Write-Host "`n[5/5] Đang ra lệnh cho AWS đổi nhân viên mới (Force New Deployment)..." -ForegroundColor Yellow
-aws ecs update-service --cluster Snaptics-Cluster --service snaptics-api-service --force-new-deployment --region ap-southeast-1 | Out-Null
+aws ecs update-service --cluster Snaptics-Cluster --service snaptics-backend-service --force-new-deployment --region ap-southeast-1 | Out-Null
 
 Write-Host "`n==========================================" -ForegroundColor Green
 Write-Host "🎉 ĐÃ GỬI LỆNH DEPLOY THÀNH CÔNG!" -ForegroundColor Green

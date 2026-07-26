@@ -116,6 +116,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuer = false, // skip issuer
             ValidateAudience = false // skip Audience
         };
+
+        // Cho phép SignalR đọc token từ query string
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddCors();
@@ -138,11 +153,11 @@ builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("Aws
 builder.Services.AddScoped<ISnsService, SnsService>();
 
 var app = builder.Build();
-
+ 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors(x => x
-    .WithOrigins("http://localhost:4200", "https://localhost:4200")
+    .SetIsOriginAllowed(origin => true)
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials() 
