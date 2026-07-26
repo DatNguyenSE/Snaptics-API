@@ -21,7 +21,7 @@ namespace BLL.Service
         }
         public async Task<string> UploadFileAsync(IFormFile file, string customerName, string folder = "bills")
         {
-            var client = new AmazonS3Client(Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
             var extension = Path.GetExtension(file.FileName);
 
             var safeName = string.IsNullOrWhiteSpace(customerName)? "unknown": RemoveVietnamese(customerName).ToLower().Replace(" ", "");
