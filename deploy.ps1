@@ -4,7 +4,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. Build
 Write-Host "`n[1/5] Đang gói code mới vào Docker..." -ForegroundColor Yellow
-docker build -t snaptics-api .
+docker build --no-cache -t snaptics-api .
 
 # 2. Tag
 Write-Host "`n[2/5] Đang dán nhãn cho gói code..." -ForegroundColor Yellow

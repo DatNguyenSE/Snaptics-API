@@ -1,4 +1,4 @@
-﻿using Amazon.SimpleNotificationService;
+using Amazon.SimpleNotificationService;
 using Amazon.SimpleNotificationService.Model;
 using BLL.Configurations;
 using BLL.Interfaces.IServices;
@@ -25,8 +25,6 @@ namespace BLL.Service
         {
             var client =
                 new AmazonSimpleNotificationServiceClient(
-                    _aws.AccessKey,
-                    _aws.SecretKey,
                     Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
 
             await client.PublishAsync(

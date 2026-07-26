@@ -130,8 +130,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnMessageReceived = context =>
             {
                 var accessToken = context.Request.Query["access_token"];
-                var path = context.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                if (!string.IsNullOrEmpty(accessToken))
                 {
                     context.Token = accessToken;
                 }
@@ -155,7 +154,12 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
-builder.Services.AddAWSService<Amazon.SQS.IAmazonSQS>();
+builder.Services.AddSingleton(typeof(Amazon.SQS.IAmazonSQS), sp =>
+{
+    var awsOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BLL.Configurations.AwsSettings>>().Value;
+    return new Amazon.SQS.AmazonSQSClient(
+        Amazon.RegionEndpoint.GetBySystemName(awsOptions.Region));
+});
 builder.Services.AddScoped<ISqsPublisherService, SqsPublisherService>();
 
 builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
@@ -216,6 +220,7 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+app.UseWebSockets();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 

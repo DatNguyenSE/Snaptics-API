@@ -140,7 +140,7 @@ namespace BLL.Service
                             new 
                             { 
                                 type = "image_url", 
-                                image_url = new { url = $"data:{image.ContentType};base64,{base64Image}" } 
+                                image_url = new { url = $"data:{contentType};base64,{base64Image}" } 
                             }
                         }
                     }
