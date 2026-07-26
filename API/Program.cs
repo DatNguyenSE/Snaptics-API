@@ -24,6 +24,13 @@ using BLL.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kết nối tới AWS Parameter Store để lấy cấu hình bí mật (Bỏ qua nếu lỗi ở Local để tránh crash)
+try {
+    builder.Configuration.AddSystemsManager("/Snaptics/Production/");
+} catch (Exception ex) {
+    Console.WriteLine($"Cảnh báo: Không thể tải cấu hình từ AWS Parameter Store. Chi tiết: {ex.Message}");
+}
+
 // Add services to the container.
 
 builder.Services.AddControllers();
