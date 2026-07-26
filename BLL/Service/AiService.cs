@@ -59,27 +59,22 @@ namespace BLL.Service
         
         // ═══════════════════════════════════════════════════════
         // Feature 1: Phân tích ảnh bằng AI (ChatGPT / gpt-4o-mini)
-        public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(IFormFile image, bool trackCalories = true, bool estimatePrice = true)
+        public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, bool trackCalories = true, bool estimatePrice = true)
         {
             var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
             var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
             var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
 
             // 1. Kiểm tra tính hợp lệ của file ảnh đầu vào (không rỗng)
-            if (image == null || image.Length == 0)
+            if (imageBytes == null || imageBytes.Length == 0)
                 throw new ArgumentException("File ảnh không hợp lệ hoặc rỗng.");
 
             var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/heic" };
-            if (!allowedTypes.Contains(image.ContentType.ToLower()))
-                throw new ArgumentException($"Định dạng ảnh không hỗ trợ: {image.ContentType}. Hỗ trợ: jpg, png, webp, heic.");
+            if (!allowedTypes.Contains(contentType.ToLower()))
+                throw new ArgumentException($"Định dạng ảnh không hỗ trợ: {contentType}. Hỗ trợ: jpg, png, webp, heic.");
 
-            // 2. Đọc nội dung file ảnh và chuyển đổi sang chuỗi Base64
-            string base64Image;
-            using (var ms = new MemoryStream())
-            {
-                await image.CopyToAsync(ms);
-                base64Image = Convert.ToBase64String(ms.ToArray());
-            }
+            // 2. Chuyển đổi sang chuỗi Base64
+            string base64Image = Convert.ToBase64String(imageBytes);
 
             // 3. Xây dựng Prompt động dựa trên cấu hình người dùng (Nâng cao độ chính xác)
             var promptBuilder = new StringBuilder();
@@ -208,15 +203,15 @@ namespace BLL.Service
         // ═══════════════════════════════════════════════════════
         // Feature 2: Đọc Bill bằng Azure Document Intelligence
 
-        public async Task<BillReadResultDto> ReadBillAsync(IFormFile billImage)
+        public async Task<BillReadResultDto> ReadBillAsync(byte[] imageBytes, string contentType)
         {
             // 1. Kiểm tra tính hợp lệ của file hóa đơn
-            if (billImage == null || billImage.Length == 0)
+            if (imageBytes == null || imageBytes.Length == 0)
                 throw new ArgumentException("File bill không hợp lệ hoặc rỗng.");
 
             var allowedTypes = new[] { "image/jpeg", "image/png", "image/tiff", "application/pdf" };
-            if (!allowedTypes.Contains(billImage.ContentType.ToLower()))
-                throw new ArgumentException($"Định dạng không hỗ trợ: {billImage.ContentType}. Hỗ trợ: jpg, png, tiff, pdf.");
+            if (!allowedTypes.Contains(contentType.ToLower()))
+                throw new ArgumentException($"Định dạng không hỗ trợ: {contentType}. Hỗ trợ: jpg, png, tiff, pdf.");
 
             // 2. Khởi tạo Azure Document Intelligence client với Endpoint và API Key
             var credential = new AzureKeyCredential(AzureKey);
@@ -224,7 +219,7 @@ namespace BLL.Service
 
             // 3. Gửi ảnh lên Azure để phân tích bằng mô hình chuyên dụng cho hóa đơn (prebuilt-receipt)
             AnalyzeDocumentOperation operation;
-            using (var stream = billImage.OpenReadStream())
+            using (var stream = new MemoryStream(imageBytes))
             {
                 operation = await docClient.AnalyzeDocumentAsync(
                     WaitUntil.Completed,

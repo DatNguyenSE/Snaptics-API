@@ -1,4 +1,4 @@
-﻿using BLL.Configurations;
+using BLL.Configurations;
 using BLL.Interfaces.IServices;
 using System;
 using System.Collections.Generic;
@@ -50,6 +50,21 @@ namespace BLL.Service
                 Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)
             };
             return client.GetPreSignedURLAsync(request);
+        }
+
+        public async Task<byte[]> DownloadFileAsync(string key)
+        {
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var request = new Amazon.S3.Model.GetObjectRequest
+            {
+                BucketName = _aws.BucketName,
+                Key = key
+            };
+
+            using var response = await client.GetObjectAsync(request);
+            using var ms = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(ms);
+            return ms.ToArray();
         }
 
         public static string RemoveVietnamese(string text)
