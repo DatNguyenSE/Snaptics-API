@@ -31,6 +31,10 @@ namespace BLL.AI
             prompt.AppendLine("  + Nếu câu nói thể hiện việc NHẬN TIỀN / THU NHẬP (ví dụ: 'được thưởng 500k', 'sếp thưởng 200k', 'nhận lương 10tr', 'bố cho 500k', 'nhặt được 50k'), hãy set is_expense = false.");
             prompt.AppendLine("  + Nếu câu nói thể hiện CHI TIÊU / MUA SẮM / TRẢ TIỀN (ví dụ: 'ăn sáng 50k', 'mua đồ 200k', 'đổ xăng 30k'), hãy set is_expense = true.");
             prompt.AppendLine("- Nếu người dùng không nhắc đến nguồn tiền/ví, hãy để wallet_name là null.");
+            prompt.AppendLine("- QUY TẮC CHỌN DANH MỤC (category): PHẢI dùng ĐÚNG một trong các tên sau (không được tự sáng tạo):");
+            prompt.AppendLine("  Ăn uống | Đồ uống | Di chuyển | Điện tử | Gia dụng | Quần áo & Phụ kiện | Sức khỏe & Làm đẹp | Giải trí | Giáo dục | Quà tặng & Thưởng | Hóa đơn & Tiện ích | Đầu tư & Tiết kiệm | Khác");
+            prompt.AppendLine("  + Khi người dùng nói 'được thưởng', 'được cho tiền', 'nhận quà', 'mẹ thưởng', 'bố cho', 'sếp thưởng' -> category = 'Quà tặng & Thưởng'");
+            prompt.AppendLine("  + Khi không chắc chắn -> category = 'Khác'");
             
             prompt.AppendLine("Khi người dùng hỏi số liệu (ví dụ: 'tháng này tiêu bao nhiêu'), hãy sử dụng tool query_financial.");
             prompt.AppendLine("Nếu câu hỏi không liên quan đến tài chính, bạn hãy giao tiếp thân thiện như một chatbot bình thường.");

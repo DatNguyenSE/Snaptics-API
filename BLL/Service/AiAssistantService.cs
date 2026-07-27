@@ -231,7 +231,7 @@ namespace BLL.Service
                                     properties = new
                                     {
                                         amount = new { type = "NUMBER", description = "Số tiền" },
-                                        category = new { type = "STRING", description = "Danh mục bằng tiếng Anh, VD: Food, Transport, Shopping, Other..." },
+                                        category = new { type = "STRING", description = "Danh mục giao dịch. Phải dùng ĐÚNG một trong các tên sau: 'Ăn uống', 'Đồ uống', 'Di chuyển', 'Điện tử', 'Gia dụng', 'Quần áo & Phụ kiện', 'Sức khỏe & Làm đẹp', 'Giải trí', 'Giáo dục', 'Quà tặng & Thưởng', 'Hóa đơn & Tiện ích', 'Đầu tư & Tiết kiệm', 'Khác'. Ví dụ: 'được mẹ thưởng 50k', 'nhận quà', 'bố cho tiền' -> 'Quà tặng & Thưởng'. Nếu không chắc thì chọn 'Khác'." },
                                         note = new { type = "STRING", description = "Mô tả ngắn gọn" },
                                         date = new { type = "STRING", description = "Ngày/giờ thực hiện giao dịch (định dạng YYYY-MM-DD hoặc YYYY-MM-DD HH:mm:ss nếu người dùng nói rõ giờ cụ thể)." },
                                         wallet_name = new { type = "STRING", description = "Tên ví/nguồn tiền (ví dụ: momo, tiền ăn sinh hoạt, tiền mặt). Loại bỏ từ phụ như 'ở ví', 'trừ vào ví'. Trả về null nếu không có." },
