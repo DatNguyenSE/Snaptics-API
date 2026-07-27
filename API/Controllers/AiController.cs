@@ -15,7 +15,7 @@ namespace API.Controllers
     public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service, ISqsPublisherService _sqsPublisher) : ControllerBase
     {
         [HttpPost("analyze-image")]
-        [ProducesResponseType(StatusCodes.Status202Accepted)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> AnalyzeImage(
@@ -28,29 +28,28 @@ namespace API.Controllers
 
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
             
-            // 1. Upload ảnh lên S3
             var s3Key = await _s3Service.UploadFileAsync(image, userId, "ai-tasks");
 
-            // 2. Tạo tin nhắn SQS
-            var aiTask = new AiTaskMessageDto
-            {
-                TaskType = "AnalyzeImage",
-                S3ObjectKey = s3Key,
-                ContentType = image.ContentType,
-                UserId = userId,
-                TrackCalories = trackCalories,
-                EstimatePrice = estimatePrice
-            };
+            using var memoryStream = new MemoryStream();
+            await image.CopyToAsync(memoryStream);
+            var imageBytes = memoryStream.ToArray();
 
-            // 3. Đẩy vào hàng đợi
-            await _sqsPublisher.SendMessageAsync(aiTask);
+            var response = await _aiService.AnalyzeImageAsync(imageBytes, image.ContentType, userId, estimatePrice);
 
-            // 4. Trả về ngay lập tức
-            return Accepted(new { message = "Đang xử lý phân tích ảnh. Kết quả sẽ được gửi qua thông báo (SignalR)." });
+            return Ok(new {
+                ItemName = response.ItemName,
+                Category = response.Category,
+                Quantity = response.Quantity,
+                EstimatedCalories = response.EstimatedCalories,
+                EstimatedPriceVND = response.EstimatedPriceVND,
+                BudgetId = response.BudgetId,
+                Unit = response.Unit,
+                ImageKey = s3Key
+            });
         }
 
         [HttpPost("read-bill")]
-        [ProducesResponseType(StatusCodes.Status202Accepted)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ReadBill(IFormFile billImage)
@@ -62,17 +61,21 @@ namespace API.Controllers
 
             var s3Key = await _s3Service.UploadFileAsync(billImage, userId, "ai-tasks");
 
-            var aiTask = new AiTaskMessageDto
-            {
-                TaskType = "ReadBill",
-                S3ObjectKey = s3Key,
-                ContentType = billImage.ContentType,
-                UserId = userId
-            };
+            using var memoryStream = new MemoryStream();
+            await billImage.CopyToAsync(memoryStream);
+            var imageBytes = memoryStream.ToArray();
 
-            await _sqsPublisher.SendMessageAsync(aiTask);
+            var response = await _aiService.ReadBillAsync(imageBytes, billImage.ContentType);
 
-            return Accepted(new { message = "Đang đọc hóa đơn. Kết quả sẽ được gửi qua thông báo (SignalR)." });
+            return Ok(new {
+                MerchantName = response.MerchantName,
+                TransactionDate = response.TransactionDate,
+                TotalAmount = response.TotalAmount,
+                Currency = response.Currency,
+                BudgetId = response.BudgetId,
+                Items = response.Items,
+                BillImageKey = s3Key
+            });
         }
     }
 }
