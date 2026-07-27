@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using DAL.IRepositories;
@@ -64,7 +64,7 @@ namespace BLL.Service
 
         public async Task<IEnumerable<ItemInventoryDto>> GetItemsNeedReviewAsync(int days = 30)
         {
-            var thresholdDate = DateTime.UtcNow.AddDays(-days);
+            var thresholdDate = DateTime.UtcNow.AddHours(7).AddDays(-days);
             var items = await _uow.ItemInventoryRepository.FindAsync(x => !x.IsReviewed && x.CreatedAt <= thresholdDate);
             return mapper.Map<IEnumerable<ItemInventoryDto>>(items);
         }
@@ -78,7 +78,7 @@ namespace BLL.Service
             }
             item.UsageStatus = usageStatus;
             item.IsReviewed = true;
-            item.LastReviewDate = DateTime.UtcNow;
+            item.LastReviewDate = DateTime.UtcNow.AddHours(7);
 
             _uow.ItemInventoryRepository.Update(item);
             await _uow.Complete();

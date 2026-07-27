@@ -48,7 +48,7 @@ namespace BLL.Service
                     Message = $"Bạn có {report.MissingPriceCount} hóa đơn chưa cập nhật giá hôm nay. Nhấn vào đây để xem và xác nhận nhé!",
                     IsRead = false,
                     Type = NotificationType.MissingInfo,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 });
             }
 

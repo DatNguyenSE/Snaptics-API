@@ -80,7 +80,7 @@ namespace BLL.Service
 
         public async Task<int> CleanupAsync(int maxHitCount, int olderThanDays)
         {
-            var thresholdDate = DateTime.UtcNow.AddDays(-olderThanDays);
+            var thresholdDate = DateTime.UtcNow.AddHours(7).AddDays(-olderThanDays);
             var itemsToDelete = await _uow.ItemDictionaryRepository.FindAsync(d => d.HitCount <= maxHitCount && d.CreatedAt <= thresholdDate);
             var itemsList = itemsToDelete.ToList();
             var count = 0;
@@ -176,7 +176,7 @@ namespace BLL.Service
                             NormalizedKeyword = normalizedName,
                             Category = item.Category,
                             HitCount = 1,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow.AddHours(7)
                         };
                         newEntries.Add(newEntry);
                         isDbChanged = true;

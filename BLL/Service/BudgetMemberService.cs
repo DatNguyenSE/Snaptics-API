@@ -63,7 +63,7 @@ namespace BLL.Service
                 UserId = userToInvite.Id,
                 Message = $"{ownerName} vừa mời bạn tham gia ví {budget.Name}.",
                 Type = NotificationType.BudgetInvitation,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow.AddHours(7),
                 IsRead = false
             });
 
@@ -94,7 +94,7 @@ namespace BLL.Service
             else if (request.Status == InvitationStatus.Accepted)
             {
                 invitation.Status = InvitationStatus.Accepted;
-                invitation.JoinedAt = DateTime.UtcNow;
+                invitation.JoinedAt = DateTime.UtcNow.AddHours(7);
                 _uow.BudgetMemberRepository.Update(invitation);
             }
             

@@ -161,7 +161,7 @@ namespace BLL.Service
 
         public async Task<SpendingComparisonDto> GetSpendingComparisonAsync(string userId)
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow.AddHours(7);
             
             // Week calculations
             int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;

@@ -1,4 +1,4 @@
-﻿using BLL.Dtos;
+using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using DAL.Enums;
 using DAL.IRepositories;
@@ -18,7 +18,7 @@ namespace BLL.Service
 
         private async Task CheckSpendingSpike(string userId)
         {
-            var today = DateTime.UtcNow;
+            var today = DateTime.UtcNow.AddHours(7);
 
             var firstDayOfMonth =
                 new DateTime(today.Year, today.Month, 1);
@@ -74,7 +74,7 @@ namespace BLL.Service
                     UserId = userId,
                     Message = message,
                     Type = NotificationType.Other,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 });
 
             await _snsService.PublishAsync(
@@ -84,7 +84,7 @@ namespace BLL.Service
 
         private async Task CheckBudgetWarning(string userId)
         {
-            var today = DateTime.UtcNow;
+            var today = DateTime.UtcNow.AddHours(7);
 
             var firstDayOfMonth =
                 new DateTime(today.Year, today.Month, 1);
@@ -130,7 +130,7 @@ namespace BLL.Service
                         UserId = userId,
                         Message = message,
                         Type = NotificationType.Other,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow.AddHours(7)
                     });
 
                 await _snsService.PublishAsync(
@@ -155,7 +155,7 @@ namespace BLL.Service
                         UserId = userId,
                         Message = message,
                         Type = NotificationType.Other,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow.AddHours(7)
                     });
 
                 await _snsService.PublishAsync(
@@ -166,7 +166,7 @@ namespace BLL.Service
 
         private async Task CheckCategoryInsight(string userId)
         {
-            var today = DateTime.UtcNow;
+            var today = DateTime.UtcNow.AddHours(7);
 
             var firstDayOfMonth =
                 new DateTime(today.Year, today.Month, 1);
@@ -224,7 +224,7 @@ namespace BLL.Service
                     UserId = userId,
                     Message = message,
                     Type = NotificationType.Other,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 });
         }
 
@@ -238,7 +238,7 @@ namespace BLL.Service
                 x.Message.Contains(
                     keyword,
                     StringComparison.OrdinalIgnoreCase) &&
-                x.CreatedAt.Date == DateTime.UtcNow.Date);
+                x.CreatedAt.Date == DateTime.UtcNow.AddHours(7).Date);
         }
     }
 }

@@ -511,7 +511,7 @@ namespace BLL.Service
                                 NormalizedKeyword = normalizedRootKeyword,
                                 Category = category,
                                 HitCount = 1,
-                                CreatedAt = DateTime.UtcNow
+                                CreatedAt = DateTime.UtcNow.AddHours(7)
                             });
                         }
                     }

@@ -146,7 +146,7 @@ namespace BLL.Service
                     string timeRange = args["time_range"]?.ToString() ?? "this_month";
                     
                     DateTime startDate, endDate;
-                    var today = DateTime.UtcNow;
+                    var today = DateTime.UtcNow.AddHours(7);
                     string timeFriendly = "tháng này";
 
                     switch (timeRange)

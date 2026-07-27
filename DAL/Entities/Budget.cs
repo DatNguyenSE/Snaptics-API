@@ -14,10 +14,10 @@ namespace DAL.Entities
         public bool IsDefault { get; set; } = false;
         public decimal CurrentAmount { get; set; } = 0m;
         public decimal Amount { get; set; } = 0m;
-        public DateTime StartDate { get; set; } = DateTime.UtcNow;
-        public DateTime? EndDate { get; set; } = DateTime.UtcNow.AddYears(1);
+        public DateTime StartDate { get; set; } = DateTime.UtcNow.AddHours(7);
+        public DateTime? EndDate { get; set; } = DateTime.UtcNow.AddHours(7).AddYears(1);
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
         public DAL.Enums.BudgetType Type { get; set; } = DAL.Enums.BudgetType.Spending;
         public int? PreviousBudgetId { get; set; }
         public bool IsAutoRenew { get; set; } = true;

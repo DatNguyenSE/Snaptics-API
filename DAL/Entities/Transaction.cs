@@ -13,13 +13,13 @@ namespace DAL.Entities
 
         public decimal TotalAmount { get; set; } = 0m;
 
-        public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
+        public DateTime TransactionDate { get; set; } = DateTime.UtcNow.AddHours(7);
 
         public TransactionStatusType Status { get; set; } = TransactionStatusType.Completed;
 
         public bool IsAiEstimated { get; set; } = false;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
         public string? Note { get; set; }
         public bool IsDeleted { get; set; } = false;
         public bool IsExpense { get; set; } = true;

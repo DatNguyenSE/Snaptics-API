@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using DAL.Enums;
@@ -23,7 +23,7 @@ namespace DAL.Entities
         // Còn hoạt động không
         public bool IsActive { get; set; } = true;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
         public virtual AppUser User { get; set; } = null!;
 

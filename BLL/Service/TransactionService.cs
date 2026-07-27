@@ -46,11 +46,22 @@ namespace BLL.Service
             if (dto == null) throw new ArgumentNullException(nameof(dto), "Payload (Hóa đơn) không được để trống.");
             if (dto.Items == null) dto.Items = new List<CreateTransactionDetailItemDto>();
 
+            // Normalize category names and default empty/unknown to "Khác"
+            foreach (var item in dto.Items)
+            {
+                if (item != null && (string.IsNullOrWhiteSpace(item.Category) || 
+                    item.Category.Trim().Equals("string", StringComparison.OrdinalIgnoreCase) ||
+                    item.Category.Trim().Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                    item.Category.Trim().Equals("Khác", StringComparison.OrdinalIgnoreCase)))
+                {
+                    item.Category = "Khác";
+                }
+            }
+
             // 1. Gom tất cả CategoryName thành mảng duy nhất, loại bỏ null/empty và giá trị "string"
             var categoryNames = dto.Items
                 .Where(i => i != null)
                 .Select(i => i.Category)
-                .Where(c => !string.IsNullOrWhiteSpace(c) && !c.Trim().Equals("string", StringComparison.OrdinalIgnoreCase))
                 .Select(c => c!)
                 .Distinct()
                 .ToList();
@@ -100,7 +111,7 @@ namespace BLL.Service
                 IsExpense = dto.IsExpense,
                 Status = DAL.Enums.TransactionStatusType.Completed, // Mặc định
                 IsAiEstimated = true,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow.AddHours(7),
                 TransactionDetails = new List<TransactionDetail>()
             };
 
@@ -113,15 +124,10 @@ namespace BLL.Service
                 if (item == null) continue;
 
                 int categoryId = 0;
-                bool isValidCategory = !string.IsNullOrWhiteSpace(item.Category) && !item.Category.Trim().Equals("string", StringComparison.OrdinalIgnoreCase);
-
-                if (isValidCategory && categoryDict.TryGetValue(item.Category, out var id))
+                
+                if (!string.IsNullOrWhiteSpace(item.Category) && categoryDict.TryGetValue(item.Category, out var id))
                 {
                     categoryId = id;
-                }
-                else
-                {
-                    throw new ArgumentException($"Sản phẩm '{item.ItemName}' có danh mục không hợp lệ hoặc chưa được phân loại. Vui lòng phân loại tất cả các sản phẩm.");
                 }
 
                 transaction.TransactionDetails.Add(new TransactionDetail
@@ -154,7 +160,7 @@ namespace BLL.Service
                         TransactionDetailId = detail.Id,
                         UsageStatus = UsageStatusType.Frequent,
                         IsReviewed = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow.AddHours(7)
                     };
 
                     await _uow.ItemInventoryRepository
@@ -183,7 +189,7 @@ namespace BLL.Service
                 UserId = userId,
                 MerchantName = billDto.MerchantName ?? "Hóa đơn siêu thị",
                 ImageKey = BillImageKey,
-                TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow,
+                TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow.AddHours(7),
                 TotalAmount = finalTotal,
                 IsExpense = isExpense,
                 // insert transation-details from parameter billDto.Items
@@ -234,7 +240,7 @@ namespace BLL.Service
                 UserId = userId,
                 MerchantName = imageDto.ItemName, 
                 ImageKey = ImageKey,
-                TransactionDate = DateTime.UtcNow,
+                TransactionDate = DateTime.UtcNow.AddHours(7),
                 TotalAmount = imageDto.EstimatedPriceVND,
                 IsExpense = isExpense,
                 Items = new List<CreateTransactionDetailItemDto>

@@ -27,7 +27,7 @@ namespace BLL.Service
 
             var safeName = string.IsNullOrWhiteSpace(customerName)? "unknown": RemoveVietnamese(customerName).ToLower().Replace(" ", "");
 
-            var fileName = $"{folder}/{safeName}_{DateTime.Now:dd-MM-yyyy_HH-mm-ss}{extension}";
+            var fileName = $"{folder}/{safeName}_{DateTime.UtcNow.AddHours(7):dd-MM-yyyy_HH-mm-ss}{extension}";
 
             using var  stream = file.OpenReadStream();
             var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;

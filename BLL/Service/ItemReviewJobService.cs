@@ -1,4 +1,4 @@
-﻿using BLL.Interfaces.IServices;
+using BLL.Interfaces.IServices;
 using DAL.Entities;
 using DAL.IRepositories;
 using DAL.Enums;
@@ -9,7 +9,7 @@ namespace BLL.Service
     {
         public async Task ScanAndSendNotificationAsync(int days = 30)
         {
-            var thresholdDate = DateTime.UtcNow.AddDays(-days);
+            var thresholdDate = DateTime.UtcNow.AddHours(7).AddDays(-days);
 
             var itemsNeedReview = await _uow.ItemInventoryRepository.GetItemsNeedReviewWithDetailAsync(thresholdDate);
 
@@ -34,7 +34,7 @@ namespace BLL.Service
 
                     Type = NotificationType.UsageReview,
 
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.AddHours(7)
                 });
             }
 

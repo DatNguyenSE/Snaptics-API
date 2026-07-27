@@ -34,7 +34,7 @@ namespace API.Controllers
         
             DateTime fromDate;
             DateTime toDate;
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow.AddHours(7);
 
             switch (filterType.ToLower())
             {
@@ -74,7 +74,7 @@ namespace API.Controllers
         
             DateTime fromDate;
             DateTime toDate;
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow.AddHours(7);
 
             switch (filterType.ToLower())
             {
@@ -113,7 +113,7 @@ namespace API.Controllers
         
             DateTime fromDate;
             DateTime toDate;
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow.AddHours(7);
 
             switch (filterType.ToLower())
             {

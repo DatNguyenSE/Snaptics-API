@@ -48,8 +48,8 @@ namespace API.Controllers
                 {
                     Name = "Mặc định",
                     IsDefault = true,
-                    StartDate = DateTime.Now,
-                    CreatedAt = DateTime.Now,
+                    StartDate = DateTime.UtcNow.AddHours(7),
+                    CreatedAt = DateTime.UtcNow.AddHours(7),
                     IsActive = true
                 };
                 await _budgetService.CreateAsync(newUser.Id, userBudget);
