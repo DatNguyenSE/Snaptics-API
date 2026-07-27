@@ -100,7 +100,7 @@ namespace BLL.Service
             promptBuilder.Append("3. DANH MỤC (category):\n");
             promptBuilder.Append($"   - Dưới đây là danh sách CÁC DANH MỤC HỢP LỆ: [{categoryListStr}].\n");
             promptBuilder.Append("   - BẮT BUỘC chọn MỘT danh mục chính xác nhất từ danh sách trên để gán cho vật thể.\n");
-            promptBuilder.Append("   - Nếu vật thể KHÔNG phù hợp với bất kỳ danh mục nào trong danh sách trên, hoặc không thể nhận diện được, BẮT BUỘC trả về 'Other'. KHÔNG ĐƯỢC tự bịa ra danh mục ngoài danh sách.\n\n");
+            promptBuilder.Append("   - Nếu vật thể KHÔNG phù hợp với bất kỳ danh mục nào trong danh sách trên, hoặc không thể nhận diện được, BẮT BUỘC trả về 'Khác'. KHÔNG ĐƯỢC tự bịa ra danh mục ngoài danh sách.\n\n");
 
             if (estimatePrice)
             {

@@ -242,7 +242,7 @@ namespace BLL.Service
                     new CreateTransactionDetailItemDto
                     {
                         ItemName = imageDto.ItemName,
-                        Price = imageDto.EstimatedPriceVND,
+                        Price = imageDto.Quantity > 0 ? Math.Round(imageDto.EstimatedPriceVND / (decimal)imageDto.Quantity, 2) : imageDto.EstimatedPriceVND,
                         Quantity = imageDto.Quantity,
                         Category = imageDto.Category,
                         EstimatedCalories = imageDto.EstimatedCalories,

@@ -108,14 +108,20 @@ namespace API.Controllers
          
             var billImageKey = await _s3Service.UploadFileAsync(image, "bill-images");
           
+            try
+            {
+                var transaction =
+                    await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey, isExpense);
 
-            var transaction =
-                await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey, isExpense);
-
-            return CreatedAtAction(
-                nameof(GetTransaction),
-                new { id = transaction.Id },
-                transaction);
+                return CreatedAtAction(
+                    nameof(GetTransaction),
+                    new { id = transaction.Id },
+                    transaction);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
@@ -137,9 +143,15 @@ namespace API.Controllers
             var userId = User.GetUserId(); 
 
             var imageKey = await _s3Service.UploadFileAsync(image, "analyze-images");
-        
-            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey, isExpense);
-            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+            try
+            {
+                var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey, isExpense);
+                return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
