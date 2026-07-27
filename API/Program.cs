@@ -24,6 +24,13 @@ using BLL.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kết nối tới AWS Parameter Store để lấy cấu hình bí mật (Bỏ qua nếu lỗi ở Local để tránh crash)
+try {
+    builder.Configuration.AddSystemsManager("/Snaptics/Production/");
+} catch (Exception ex) {
+    Console.WriteLine($"Cảnh báo: Không thể tải cấu hình từ AWS Parameter Store. Chi tiết: {ex.Message}");
+}
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -117,6 +124,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuer = false, // skip issuer
             ValidateAudience = false // skip Audience
         };
+
+        // Cho phép SignalR đọc token từ query string
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddCors();
@@ -134,16 +155,26 @@ builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddSingleton(typeof(Amazon.SQS.IAmazonSQS), sp =>
+{
+    var awsOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BLL.Configurations.AwsSettings>>().Value;
+    var region = string.IsNullOrEmpty(awsOptions.Region) ? "ap-southeast-1" : awsOptions.Region;
+    return new Amazon.SQS.AmazonSQSClient(Amazon.RegionEndpoint.GetBySystemName(region));
+});
+builder.Services.AddScoped<ISqsPublisherService, SqsPublisherService>();
 
 builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
 builder.Services.AddScoped<ISnsService, SnsService>();
 
-var app = builder.Build();
+// Khởi chạy công nhân lắng nghe AWS SQS
+builder.Services.AddHostedService<API.BackgroundServices.SqsConsumerService>();
 
+var app = builder.Build();
+ 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors(x => x
-    .WithOrigins("http://localhost:4200", "https://localhost:4200")
+    .SetIsOriginAllowed(origin => true)
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials() 
@@ -190,6 +221,7 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+app.UseWebSockets();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 

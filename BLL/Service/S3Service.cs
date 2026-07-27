@@ -1,4 +1,4 @@
-﻿using BLL.Configurations;
+using BLL.Configurations;
 using BLL.Interfaces.IServices;
 using System;
 using System.Collections.Generic;
@@ -21,7 +21,8 @@ namespace BLL.Service
         }
         public async Task<string> UploadFileAsync(IFormFile file, string customerName, string folder = "bills")
         {
-            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
             var extension = Path.GetExtension(file.FileName);
 
             var safeName = string.IsNullOrWhiteSpace(customerName)? "unknown": RemoveVietnamese(customerName).ToLower().Replace(" ", "");
@@ -29,9 +30,10 @@ namespace BLL.Service
             var fileName = $"{folder}/{safeName}_{DateTime.Now:dd-MM-yyyy_HH-mm-ss}{extension}";
 
             using var  stream = file.OpenReadStream();
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
             var request = new PutObjectRequest
             {
-                BucketName = _aws.BucketName,
+                BucketName = bucketName,
                 Key = fileName,
                 InputStream = stream,
                 ContentType = file.ContentType
@@ -42,14 +44,33 @@ namespace BLL.Service
 
         public Task<string> GeneratePresignedUrlAsync(string key, int expiryMinutes = 15)
         {
-            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(_aws.Region));
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
             var request = new GetPreSignedUrlRequest
             {
-                BucketName = _aws.BucketName,
+                BucketName = bucketName,
                 Key = key,
                 Expires = DateTime.UtcNow.AddMinutes(expiryMinutes)
             };
             return client.GetPreSignedURLAsync(request);
+        }
+
+        public async Task<byte[]> DownloadFileAsync(string key)
+        {
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
+            var request = new Amazon.S3.Model.GetObjectRequest
+            {
+                BucketName = bucketName,
+                Key = key
+            };
+
+            using var response = await client.GetObjectAsync(request);
+            using var ms = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(ms);
+            return ms.ToArray();
         }
 
         public static string RemoveVietnamese(string text)
