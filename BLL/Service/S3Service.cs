@@ -73,6 +73,39 @@ namespace BLL.Service
             return ms.ToArray();
         }
 
+        public async Task<string> MoveObjectAsync(string sourceKey, string destinationFolder = "bills")
+        {
+            if (string.IsNullOrEmpty(sourceKey)) return null;
+
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
+            
+            // Extract filename from sourceKey (e.g., "temp-ai/image.jpg" -> "image.jpg")
+            var fileName = Path.GetFileName(sourceKey);
+            var destinationKey = $"{destinationFolder}/{fileName}";
+
+            // Copy object
+            var copyRequest = new CopyObjectRequest
+            {
+                SourceBucket = bucketName,
+                SourceKey = sourceKey,
+                DestinationBucket = bucketName,
+                DestinationKey = destinationKey
+            };
+            await client.CopyObjectAsync(copyRequest);
+
+            // Delete original object from temp folder
+            var deleteRequest = new DeleteObjectRequest
+            {
+                BucketName = bucketName,
+                Key = sourceKey
+            };
+            await client.DeleteObjectAsync(deleteRequest);
+
+            return destinationKey;
+        }
+
         public static string RemoveVietnamese(string text)
         {
             var normalized = text.Normalize(NormalizationForm.FormD);

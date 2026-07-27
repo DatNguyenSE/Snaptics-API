@@ -27,25 +27,21 @@ namespace API.Controllers
             if (image.Length > 10 * 1024 * 1024) return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
 
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
-            
-            var s3Key = await _s3Service.UploadFileAsync(image, userId, "ai-tasks");
+            var s3Key = await _s3Service.UploadFileAsync(image, userId, "temp-ai");
 
-            using var memoryStream = new MemoryStream();
-            await image.CopyToAsync(memoryStream);
-            var imageBytes = memoryStream.ToArray();
+            var aiTask = new AiTaskMessageDto
+            {
+                TaskType = "AnalyzeImage",
+                S3ObjectKey = s3Key,
+                ContentType = image.ContentType,
+                UserId = userId,
+                TrackCalories = trackCalories,
+                EstimatePrice = estimatePrice
+            };
 
-            var response = await _aiService.AnalyzeImageAsync(imageBytes, image.ContentType, userId, estimatePrice);
+            await _sqsPublisher.SendMessageAsync(aiTask);
 
-            return Ok(new {
-                ItemName = response.ItemName,
-                Category = response.Category,
-                Quantity = response.Quantity,
-                EstimatedCalories = response.EstimatedCalories,
-                EstimatedPriceVND = response.EstimatedPriceVND,
-                BudgetId = response.BudgetId,
-                Unit = response.Unit,
-                ImageKey = s3Key
-            });
+            return Accepted(new { message = "Request accepted. Processing in background.", s3Key });
         }
 
         [HttpPost("read-bill")]
@@ -58,24 +54,19 @@ namespace API.Controllers
             if (billImage.Length > 20 * 1024 * 1024) return BadRequest("Kích thước file không được vượt quá 20MB.");
 
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+            var s3Key = await _s3Service.UploadFileAsync(billImage, userId, "temp-ai");
 
-            var s3Key = await _s3Service.UploadFileAsync(billImage, userId, "ai-tasks");
+            var aiTask = new AiTaskMessageDto
+            {
+                TaskType = "ReadBill",
+                S3ObjectKey = s3Key,
+                ContentType = billImage.ContentType,
+                UserId = userId
+            };
 
-            using var memoryStream = new MemoryStream();
-            await billImage.CopyToAsync(memoryStream);
-            var imageBytes = memoryStream.ToArray();
+            await _sqsPublisher.SendMessageAsync(aiTask);
 
-            var response = await _aiService.ReadBillAsync(imageBytes, billImage.ContentType);
-
-            return Ok(new {
-                MerchantName = response.MerchantName,
-                TransactionDate = response.TransactionDate,
-                TotalAmount = response.TotalAmount,
-                Currency = response.Currency,
-                BudgetId = response.BudgetId,
-                Items = response.Items,
-                BillImageKey = s3Key
-            });
+            return Accepted(new { message = "Request accepted. Processing in background.", s3Key });
         }
     }
 }

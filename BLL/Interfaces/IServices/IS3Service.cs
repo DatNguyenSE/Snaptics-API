@@ -13,5 +13,7 @@ namespace BLL.Interfaces.IServices
         Task<string> GeneratePresignedUrlAsync(string key, int expiryMinutes = 15);
         //tải file từ s3 về dạng mảng byte
         Task<byte[]> DownloadFileAsync(string key);
+        //di chuyển file (copy rồi xóa) sang thư mục khác
+        Task<string> MoveObjectAsync(string sourceKey, string destinationFolder = "bills");
     }
 }
