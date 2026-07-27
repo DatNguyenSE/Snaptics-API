@@ -36,25 +36,29 @@ namespace BLL.Service
             // 2. Tính thẻ Tổng quan từ Transaction
             response.TotalIncome = transactions
                 .Where(t => !t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .Sum(td => td.Price * td.Quantity);
+                .Sum(t => t.TotalAmount);
 
             response.TotalExpense = transactions
                 .Where(t => t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .Sum(td => td.Price * td.Quantity);
+                .Sum(t => t.TotalAmount);
 
             response.Balance = response.TotalIncome - response.TotalExpense;
 
             // 3. Biểu đồ tròn (Cơ cấu chi tiêu - chỉ tính Expense)
             response.PieChart = transactions
                 .Where(t => t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .GroupBy(td => td.Category?.Name ?? "Unknown")
+                .SelectMany(t => t.TransactionDetails.Select(td => new
+                {
+                    CategoryName = td.Category?.Name ?? "Unknown",
+                    ActualAmount = (t.IsAiEstimated && t.TransactionDetails.Count == 1 && td.Price == t.TotalAmount && td.Quantity > 1)
+                        ? t.TotalAmount
+                        : td.Price * td.Quantity
+                }))
+                .GroupBy(x => x.CategoryName)
                 .Select(g => new PieChartDto
                 {
                     CategoryName = g.Key,
-                    TotalAmount = g.Sum(td => td.Price * td.Quantity)
+                    TotalAmount = g.Sum(x => x.ActualAmount)
                 })
                 .OrderByDescending(x => x.TotalAmount)
                 .ToList();
@@ -95,12 +99,18 @@ namespace BLL.Service
 
             var groupedCategories = transactions
                 .Where(t => t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .GroupBy(td => td.Category?.Name ?? "Khác")
+                .SelectMany(t => t.TransactionDetails.Select(td => new
+                {
+                    CategoryName = td.Category?.Name ?? "Khác",
+                    ActualAmount = (t.IsAiEstimated && t.TransactionDetails.Count == 1 && td.Price == t.TotalAmount && td.Quantity > 1)
+                        ? t.TotalAmount
+                        : td.Price * td.Quantity
+                }))
+                .GroupBy(x => x.CategoryName)
                 .Select(g => new CategorySummaryItemDto
                 {
                     Name = g.Key,
-                    TotalAmount = g.Sum(td => td.Price * td.Quantity)
+                    TotalAmount = g.Sum(x => x.ActualAmount)
                 })
                 .OrderByDescending(x => x.TotalAmount)
                 .ToList();
@@ -180,8 +190,7 @@ namespace BLL.Service
             {
                 return transactions
                     .Where(t => t.TransactionDate >= start && t.TransactionDate < endExclusive)
-                    .SelectMany(t => t.TransactionDetails)
-                    .Sum(td => td.Price * td.Quantity);
+                    .Sum(t => t.TotalAmount);
             }
 
             var currentWeekAmount = GetAmount(currentWeekStart, currentWeekStart.AddDays(7));
@@ -311,8 +320,7 @@ namespace BLL.Service
         private static decimal GetTransactionAmount(Transaction transaction, bool isExpense)
         {
             if (transaction.IsExpense != isExpense) return 0m;
-            return transaction.TransactionDetails
-                .Sum(td => td.Price * td.Quantity);
+            return transaction.TotalAmount;
         }
     }
 }
