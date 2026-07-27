@@ -8,7 +8,7 @@ namespace BLL.Interfaces.IServices
 {
     public interface ICategoryService
     {
-        Task<IEnumerable<CategoryDto>> GetAllAsync();
+        Task<IEnumerable<CategoryDto>> GetAllAsync(string? userId = null);
         Task<CategoryDto> GetByIdAsync(int categoryId);
         Task<CategoryDto> CreateAsync(CategoryDto categoryDto);
         Task<CategoryDto> CreateByNameAsync(string categoryName);

@@ -8,11 +8,10 @@ namespace BLL.Service
 {
     public class CategoryService(IUnitOfWork _uow, IMapper mapper) : ICategoryService
     {
-        public async Task<IEnumerable<CategoryDto>> GetAllAsync()
+        public async Task<IEnumerable<CategoryDto>> GetAllAsync(string? userId = null)
         {
-            var cates = await _uow.CategoryRepository.GetAllAsync();
+            var cates = await _uow.CategoryRepository.FindAsync(c => !c.IsDeleted && (c.IsDefault || (userId != null && c.UserId == userId)));
             return mapper.Map<IEnumerable<CategoryDto>>(cates);
-             // use AutoMapper to map from Category to CategoryDto (need to configure mapping in AutoMapper profile)
         }
 
         public async Task<CategoryDto> GetByIdAsync(int categoryId)
@@ -23,7 +22,17 @@ namespace BLL.Service
 
         public async Task<CategoryDto> CreateAsync(CategoryDto categoryDto)
         {
-            var isDuplicate = await _uow.CategoryRepository.AnyAsync(c => c.Name == categoryDto.Name);
+            // If UserId is provided, check duplicates only for that user and default categories
+            var isDuplicate = false;
+            if (string.IsNullOrEmpty(categoryDto.UserId))
+            {
+                isDuplicate = await _uow.CategoryRepository.AnyAsync(c => c.Name == categoryDto.Name && c.IsDefault && !c.IsDeleted);
+            }
+            else
+            {
+                isDuplicate = await _uow.CategoryRepository.AnyAsync(c => c.Name == categoryDto.Name && !c.IsDeleted && (c.IsDefault || c.UserId == categoryDto.UserId));
+            }
+
             if (isDuplicate)
             {
                 throw new InvalidOperationException("Category already exists");
@@ -31,6 +40,11 @@ namespace BLL.Service
 
             // Map lại từ dto sang entity để lưu vào database
             var entity = mapper.Map<Category>(categoryDto);
+            if (!string.IsNullOrEmpty(categoryDto.UserId))
+            {
+                entity.IsDefault = false;
+            }
+            
             await _uow.CategoryRepository.AddAsync(entity);
            
             await _uow.Complete();

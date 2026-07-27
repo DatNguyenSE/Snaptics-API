@@ -14,6 +14,9 @@ namespace BLL.Dtos
         public string? Icon { get; set; } 
         public string? Color { get; set; } 
         public string? Status { get; set; }
-
+        
+        public bool IsDefault { get; set; }
+        public string? UserId { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

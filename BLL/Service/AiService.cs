@@ -37,14 +37,14 @@ namespace BLL.Service
 
         // Prompt mạnh mẽ gửi kèm ảnh phân tích
         private const string AnalyzeImagePrompt =
-            "Đóng vai một chuyên gia thẩm định giá và chuyên gia dinh dưỡng. " +
+            "Đóng vai một chuyên gia thẩm định giá. " +
             "Hãy phân tích hình ảnh này để xác định đây là món đồ hay thực phẩm gì. " +
             "CHÚ Ý CỰC KỲ QUAN TRỌNG: BẠN PHẢI QUAN SÁT KỸ VÀ ĐẾM CHÍNH XÁC SỐ LƯỢNG VẬT THỂ CÙNG LOẠI XUẤT HIỆN TRONG ẢNH. " +
-            "Ví dụ 1: Nếu thấy 2 ly trà sữa, itemName là 'Trà sữa (2 ly)', quantity là 2, category là 'Drink', estimatedCalories là tổng calo của 2 ly, estimatedPriceVND là tổng giá 2 ly. " +
-            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng', quantity là 1, unit là 'cái', category là 'Furniture', estimatedCalories là 0, estimatedPriceVND là giá thị trường ước tính của 1 cái ghế đó. " +
+            "Ví dụ 1: Nếu thấy 2 ly trà sữa, itemName là 'Trà sữa (2 ly)', quantity là 2, category là 'Drink', estimatedPriceVND là tổng giá 2 ly. " +
+            "Ví dụ 2: Nếu thấy 1 cái ghế, itemName là 'Ghế văn phòng', quantity là 1, unit là 'cái', category là 'Furniture', estimatedPriceVND là giá thị trường ước tính của 1 cái ghế đó. " +
             "Quy tắc phân loại (category): Phân loại càng cụ thể càng tốt bằng TIẾNG ANH (ví dụ: Food, Drink, Furniture, Electronics, Clothing, Stationery, Cosmetics, Necessities, v.v.). 'Drink' dành riêng cho thức uống. Nếu không thể xác định, BẮT BUỘC để category là 'Unknown'. Không trả về chuỗi chung chung như 'Food/Object'. " +
             "Trả về cho tôi một chuỗi JSON chuẩn có cấu trúc: " +
-            "{ \"itemName\": \"\", \"quantity\": <điền số lượng đếm được>, \"unit\": \"<đơn vị tính: ly, cái, hộp, phần, chai...>\", \"category\": \"\", \"estimatedCalories\": 0, \"estimatedPriceVND\": 0 }. " +
+            "{ \"itemName\": \"\", \"quantity\": <điền số lượng đếm được>, \"unit\": \"<đơn vị tính: ly, cái, hộp, phần, chai...>\", \"category\": \"\", \"estimatedPriceVND\": 0 }. " +
             "Chỉ trả về JSON, không giải thích gì thêm. Không bọc kết quả trong markdown (như ```json ).";
 
         public AiService(IHttpClientFactory httpClientFactory, IConfiguration config,
@@ -59,7 +59,7 @@ namespace BLL.Service
         
         // ═══════════════════════════════════════════════════════
         // Feature 1: Phân tích ảnh bằng AI (ChatGPT / gpt-4o-mini)
-        public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, bool trackCalories = true, bool estimatePrice = true)
+        public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true)
         {
             var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
             var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
@@ -73,38 +73,34 @@ namespace BLL.Service
             if (!allowedTypes.Contains(contentType.ToLower()))
                 throw new ArgumentException($"Định dạng ảnh không hỗ trợ: {contentType}. Hỗ trợ: jpg, png, webp, heic.");
 
+            // Lấy danh sách category từ DB
+            var categories = await _unitOfWork.CategoryRepository.FindAsync(c => !c.IsDeleted && (c.IsDefault || c.UserId == userId));
+            var categoryNames = categories.Select(c => c.Name).ToList();
+            var categoryListStr = string.Join(", ", categoryNames);
+
             // 2. Chuyển đổi sang chuỗi Base64
             string base64Image = Convert.ToBase64String(imageBytes);
 
             // 3. Xây dựng Prompt động dựa trên cấu hình người dùng (Nâng cao độ chính xác)
             var promptBuilder = new StringBuilder();
             promptBuilder.Append("Bạn là một chuyên gia AI phân tích hình ảnh chuyên sâu");
-            if (trackCalories) promptBuilder.Append(" kết hợp vai trò chuyên gia dinh dưỡng");
             if (estimatePrice) promptBuilder.Append(" kết hợp vai trò chuyên gia thẩm định giá");
             promptBuilder.Append(". Hãy thực hiện phân tích bức ảnh này và trả về kết quả đáp ứng các tiêu chí nghiêm ngặt sau:\n");
 
             promptBuilder.Append("1. TÊN VẬT THỂ (itemName):\n");
             promptBuilder.Append("   - BẮT BUỘC viết bằng TIẾNG VIỆT có dấu.\n");
-            promptBuilder.Append("   - Hãy quan sát kỹ nhãn hiệu, logo, bao bì, chữ viết xuất hiện trong ảnh để lấy tên chi tiết nhất có thể (Ví dụ: 'Trà sữa Catinat', 'Bánh mì sandwich Kinh Đô', 'Coca-Cola', 'Ốp lưng iPhone silicon màu đỏ' thay vì gọi chung chung là 'Cà phê', 'Bánh mì', 'Nước ngọt', 'Ốp lưng').\n");
-            promptBuilder.Append("   - KHÔNG gộp số lượng và đơn vị vào tên vật thể (itemName) (Ví dụ: itemName là 'Trà sữa', KHÔNG ghi '2 ly trà sữa').\n\n");
+            promptBuilder.Append("   - Hãy quan sát kỹ để lấy tên chi tiết nhất có thể. KHÔNG bị giới hạn chỉ đồ ăn, bạn có thể nhận diện TẤT CẢ mọi thứ từ Đồ chơi, Đồ điện tử, Nội thất, Đồ gia dụng, Quần áo, Xe cộ, Văn phòng phẩm, v.v.\n");
+            promptBuilder.Append("   - MẸO QUAN TRỌNG VỚI ĐỒ ĂN: Nếu trong ảnh là một mâm đồ ăn hoặc một món ăn có nhiều thành phần (ví dụ: mẹt gồm đậu phụ, thịt luộc, chả cốm...), hãy NHẬN DIỆN TÊN TỔNG THỂ CỦA MÓN ĐÓ (ví dụ: 'Bún đậu mắm tôm thập cẩm') thay vì chỉ liệt kê lẻ tẻ một nguyên liệu.\n");
+            promptBuilder.Append("   - KHÔNG gộp số lượng và đơn vị vào tên vật thể (itemName).\n\n");
 
             promptBuilder.Append("2. ĐƠN VỊ TÍNH VÀ SỐ LƯỢNG:\n");
             promptBuilder.Append("   - Đếm chính xác số lượng (quantity) của vật thể.\n");
-            promptBuilder.Append("   - BẮT BUỘC cung cấp đơn vị tính (unit) như: 'ly', 'cái', 'tô', 'phần', 'hộp', 'chai', 'lon', v.v. Nếu không rõ, hãy để 'cái'.\n\n");
+            promptBuilder.Append("   - BẮT BUỘC cung cấp đơn vị tính (unit) bằng tiếng Việt (ví dụ: 'cái', 'chiếc', 'hộp', 'ly', 'quyển', 'bộ', v.v.).\n\n");
 
             promptBuilder.Append("3. DANH MỤC (category):\n");
-            promptBuilder.Append("   - BẮT BUỘC dùng TIẾNG ANH.\n");
-            promptBuilder.Append("   - Hãy phân loại danh mục một cách linh hoạt, chính xác và cụ thể nhất dựa trên đặc tính của vật thể (Ví dụ: 'Food', 'Drink', 'Apparel', 'Electronics', 'Books', 'Toys', 'Kitchenware', 'Vehicle', 'Cosmetics', 'Necessities', v.v. — KHÔNG BỊ GIỚI HẠN trong một danh sách cố định).\n");
-            promptBuilder.Append("   - Chỉ sử dụng 'Unknown' khi vật thể thực sự không thể nhận diện được (bị che khuất, quá mờ hoặc hoàn toàn không có thông tin).\n\n");
-
-            if (trackCalories)
-            {
-                promptBuilder.Append("3. ĐỊNH LƯỢNG CALO (estimatedCalories):\n");
-                promptBuilder.Append("   - Ước tính lượng calo (kcal) thực tế và khoa học dựa trên món ăn/đồ uống được nhận diện, kích thước hoặc định lượng ước chừng trong ảnh.\n");
-                promptBuilder.Append("   - Ví dụ chuẩn xác: 1 ly trà sữa trân châu thường khoảng 350-450 kcal; 1 đĩa cơm sườn trứng khoảng 600-750 kcal; 1 ổ bánh mì thịt khoảng 350-400 kcal; 1 cốc cafe sữa đá khoảng 100-150 kcal.\n");
-                promptBuilder.Append("   - BẮT BUỘC nhân lượng calo tương ứng với số lượng (quantity) vật thể đếm được (Ví dụ: phát hiện 2 ly trà sữa thì calo phải là tổng của cả 2 ly).\n");
-                promptBuilder.Append("   - Nếu vật thể KHÔNG PHẢI đồ ăn hoặc thức uống, BẮT BUỘC gán giá trị là 0.\n\n");
-            }
+            promptBuilder.Append($"   - Dưới đây là danh sách CÁC DANH MỤC HỢP LỆ: [{categoryListStr}].\n");
+            promptBuilder.Append("   - BẮT BUỘC chọn MỘT danh mục chính xác nhất từ danh sách trên để gán cho vật thể.\n");
+            promptBuilder.Append("   - Nếu vật thể KHÔNG phù hợp với bất kỳ danh mục nào trong danh sách trên, hoặc không thể nhận diện được, BẮT BUỘC trả về 'Other'. KHÔNG ĐƯỢC tự bịa ra danh mục ngoài danh sách.\n\n");
 
             if (estimatePrice)
             {
@@ -118,7 +114,6 @@ namespace BLL.Service
             promptBuilder.Append("  \"quantity\": <số lượng vật thể đếm được (decimal/int)>,\n");
             promptBuilder.Append("  \"unit\": \"<đơn vị tính>\",\n");
             promptBuilder.Append("  \"category\": \"\"");
-            if (trackCalories) promptBuilder.Append(",\n  \"estimatedCalories\": <tổng calo ước tính (int)>");
             if (estimatePrice) promptBuilder.Append(",\n  \"estimatedPriceVND\": <tổng giá trị ước tính VND (long)>");
             promptBuilder.Append("\n}. Chỉ trả về JSON, không kèm giải thích hay bất kỳ chữ nào khác. Không bọc kết quả trong markdown (```json).");
 

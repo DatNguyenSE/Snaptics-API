@@ -98,6 +98,12 @@ namespace DAL.Data
                 .WithMany(i => i.BudgetIncomeSources)
                 .HasForeignKey(bis => bis.IncomeSourceId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Category>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

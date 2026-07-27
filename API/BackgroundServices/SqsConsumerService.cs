@@ -49,18 +49,21 @@ namespace API.BackgroundServices
 
                     var response = await _sqsClient.ReceiveMessageAsync(receiveRequest, stoppingToken);
 
-                    foreach (var message in response.Messages)
+                    if (response?.Messages != null)
                     {
-                        _logger.LogInformation($"Received SQS message: {message.MessageId}");
-                        await ProcessMessageAsync(message.Body, stoppingToken);
-
-                        // Delete message after processing
-                        var deleteRequest = new DeleteMessageRequest
+                        foreach (var message in response.Messages)
                         {
-                            QueueUrl = queueUrl,
-                            ReceiptHandle = message.ReceiptHandle
-                        };
-                        await _sqsClient.DeleteMessageAsync(deleteRequest, stoppingToken);
+                            _logger.LogInformation($"Received SQS message: {message.MessageId}");
+                            await ProcessMessageAsync(message.Body, stoppingToken);
+
+                            // Delete message after processing
+                            var deleteRequest = new DeleteMessageRequest
+                            {
+                                QueueUrl = queueUrl,
+                                ReceiptHandle = message.ReceiptHandle
+                            };
+                            await _sqsClient.DeleteMessageAsync(deleteRequest, stoppingToken);
+                        }
                     }
                 }
                 catch (AmazonSQSException ex)
@@ -95,7 +98,7 @@ namespace API.BackgroundServices
                 object result = null;
                 if (aiTask.TaskType == "AnalyzeImage")
                 {
-                    result = await aiService.AnalyzeImageAsync(imageBytes, aiTask.ContentType, aiTask.TrackCalories, aiTask.EstimatePrice);
+                    result = await aiService.AnalyzeImageAsync(imageBytes, aiTask.ContentType, aiTask.UserId, aiTask.EstimatePrice);
                 }
                 else if (aiTask.TaskType == "ReadBill")
                 {

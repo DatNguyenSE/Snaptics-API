@@ -8,7 +8,7 @@ namespace BLL.Interfaces.IServices
         /// <summary>
         /// Gửi ảnh lên Google Gemini Vision kèm prompt chuyên gia dinh dưỡng.
         /// </summary>
-        Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, bool trackCalories = true, bool estimatePrice = true);
+        Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true);
 
         /// <summary>
         /// Gửi ảnh hóa đơn/bill lên Azure Document Intelligence (prebuilt-receipt).

@@ -18,7 +18,8 @@ namespace API.Controllers
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<CategoryDto>>> GetCategories()
         {
-            var categories = await _cateService.GetAllAsync();
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var categories = await _cateService.GetAllAsync(userId);
             return Ok(categories);
         }
 
@@ -36,6 +37,8 @@ namespace API.Controllers
         [Authorize]
         public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CategoryDto categoryDto)
         {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            categoryDto.UserId = userId; // Gán UserId của người đang đăng nhập
             var category = await _cateService.CreateAsync(categoryDto);
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
