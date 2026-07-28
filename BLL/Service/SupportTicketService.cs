@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using BLL.Dtos;
@@ -8,6 +8,8 @@ using DAL.Entities;
 using DAL.Enums;
 using DAL.IRepositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace BLL.Service
 {
@@ -158,6 +160,131 @@ namespace BLL.Service
             await _uow.Complete();
 
             return MapAttachmentToDto(attachment);
+        }
+
+        // ==================== Admin Methods ====================
+
+        public async Task<PaginatedResultDto<SupportTicketDto>> AdminGetTicketsAsync(AdminTicketQueryDto query)
+        {
+            var pagedTickets = await _uow.SupportTicketRepository.AdminSearchAsync(
+                query.Search, query.Status, query.Priority, query.Category, query.AssignedToId, query.Page, query.Size);
+
+            var totalCount = await _uow.SupportTicketRepository.AdminCountAsync(
+                query.Search, query.Status, query.Priority, query.Category, query.AssignedToId);
+
+            return new PaginatedResultDto<SupportTicketDto>
+            {
+                Items = pagedTickets.Select(MapToDto).ToList(),
+                TotalCount = totalCount,
+                Page = query.Page,
+                Size = query.Size
+            };
+        }
+
+        public async Task<SupportTicketDetailDto?> AdminGetTicketDetailAsync(int ticketId)
+        {
+            var ticket = await _uow.SupportTicketRepository.GetWithDetailsAsync(ticketId);
+            if (ticket == null) return null;
+
+            return MapToDetailDto(ticket);
+        }
+
+        public async Task<SupportTicketDto> AdminAssignTicketAsync(int ticketId, string assignedToId)
+        {
+            var ticket = await _uow.SupportTicketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                throw new KeyNotFoundException("Ticket not found");
+
+            ticket.AssignedToId = assignedToId;
+            ticket.UpdatedAt = DateTime.UtcNow;
+            _uow.SupportTicketRepository.Update(ticket);
+            await _uow.Complete();
+
+            // Load nav property to map correctly
+            ticket = await _uow.SupportTicketRepository.GetWithDetailsAsync(ticketId);
+
+            return MapToDto(ticket!);
+        }
+
+        public async Task<SupportTicketDto> AdminUpdateTicketStatusAsync(int ticketId, SupportTicketStatus status)
+        {
+            var ticket = await _uow.SupportTicketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                throw new KeyNotFoundException("Ticket not found");
+
+            ticket.Status = status;
+            if (status == SupportTicketStatus.Resolved || status == SupportTicketStatus.Closed)
+                ticket.ResolvedAt = DateTime.UtcNow;
+            
+            ticket.UpdatedAt = DateTime.UtcNow;
+            _uow.SupportTicketRepository.Update(ticket);
+            await _uow.Complete();
+
+            ticket = await _uow.SupportTicketRepository.GetWithDetailsAsync(ticketId);
+
+            return MapToDto(ticket!);
+        }
+
+        public async Task<SupportTicketDto> AdminUpdateTicketPriorityAsync(int ticketId, SupportTicketPriority priority)
+        {
+            var ticket = await _uow.SupportTicketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                throw new KeyNotFoundException("Ticket not found");
+
+            ticket.Priority = priority;
+            ticket.UpdatedAt = DateTime.UtcNow;
+            _uow.SupportTicketRepository.Update(ticket);
+            await _uow.Complete();
+
+            ticket = await _uow.SupportTicketRepository.GetWithDetailsAsync(ticketId);
+
+            return MapToDto(ticket!);
+        }
+
+        public async Task<SupportMessageDto> AdminSendMessageAsync(string adminId, int ticketId, AdminSendMessageDto dto)
+        {
+            var ticket = await _uow.SupportTicketRepository.GetByIdAsync(ticketId);
+            if (ticket == null)
+                throw new KeyNotFoundException("Ticket not found");
+
+            var message = new SupportMessage
+            {
+                TicketId = ticketId,
+                SenderId = adminId,
+                Content = dto.Content,
+                IsFromAdmin = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _uow.SupportMessageRepository.AddAsync(message);
+
+            if (dto.Attachment != null)
+            {
+                var fileKey = await _s3Service.UploadFileAsync(dto.Attachment, $"support-admin-{adminId}", "support-attachments");
+                var attachment = new SupportAttachment
+                {
+                    TicketId = ticketId,
+                    MessageId = message.Id, // need to save first to get ID, or EF Core resolves it upon complete
+                    FileUrl = fileKey,
+                    FileName = dto.Attachment.FileName,
+                    FileType = dto.Attachment.ContentType,
+                    FileSize = dto.Attachment.Length,
+                    CreatedAt = DateTime.UtcNow
+                };
+                message.Attachments.Add(attachment);
+            }
+
+            // Update ticket status to WaitingForUser when admin replies
+            ticket.Status = SupportTicketStatus.WaitingForUser;
+            ticket.UpdatedAt = DateTime.UtcNow;
+            _uow.SupportTicketRepository.Update(ticket);
+
+            await _uow.Complete();
+
+            // reload to get sender nav property
+            message = await _uow.SupportMessageRepository.GetWithDetailsAsync(message.Id);
+
+            return MapMessageToDto(message!);
         }
 
         // ==================== Mapping Helpers ====================

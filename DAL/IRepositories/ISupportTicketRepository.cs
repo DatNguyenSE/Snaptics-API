@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using DAL.Entities;
@@ -22,5 +22,21 @@ namespace DAL.IRepositories
             SupportTicketStatus? status,
             SupportTicketCategory? category,
             string userId);
+            
+        Task<IEnumerable<SupportTicket>> AdminSearchAsync(
+            string? search,
+            SupportTicketStatus? status,
+            SupportTicketPriority? priority,
+            SupportTicketCategory? category,
+            string? assignedToId,
+            int page,
+            int size);
+            
+        Task<int> AdminCountAsync(
+            string? search,
+            SupportTicketStatus? status,
+            SupportTicketPriority? priority,
+            SupportTicketCategory? category,
+            string? assignedToId);
     }
 }
