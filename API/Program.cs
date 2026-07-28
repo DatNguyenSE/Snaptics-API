@@ -148,7 +148,7 @@ builder.Services.AddHangfire(configuration => configuration
     .UseRecommendedSerializerSettings()
     .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
 builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
