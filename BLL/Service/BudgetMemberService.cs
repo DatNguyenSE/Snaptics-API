@@ -64,7 +64,8 @@ namespace BLL.Service
                 Message = $"{ownerName} vừa mời bạn tham gia ví {budget.Name}.",
                 Type = NotificationType.BudgetInvitation,
                 CreatedAt = DateTime.UtcNow.AddHours(7),
-                IsRead = false
+                IsRead = false,
+                RelatedId = budgetMember.Id
             });
 
             return new BudgetMemberResponseDto

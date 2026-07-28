@@ -65,6 +65,56 @@ namespace BLL.Service
             return mapper.Map<CategoryDto>(entity);
         }
 
+        public async Task<CategoryDto> UpdateAsync(int categoryId, CategoryDto categoryDto, string? userId = null)
+        {
+            ArgumentNullException.ThrowIfNull(categoryDto);
+
+            var entity = await _uow.CategoryRepository.GetByIdAsync(categoryId);
+            if (entity == null || entity.IsDeleted)
+            {
+                throw new KeyNotFoundException("Category not found");
+            }
+
+            if (!entity.IsDefault && entity.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("You cannot update this category");
+            }
+
+            entity.Name = categoryDto.Name;
+            entity.IsTrackableInventory = categoryDto.IsTrackableInventory;
+            entity.Icon = categoryDto.Icon;
+            entity.Color = categoryDto.Color;
+            entity.Status = categoryDto.Status ?? entity.Status;
+
+            _uow.CategoryRepository.Update(entity);
+            await _uow.Complete();
+            return mapper.Map<CategoryDto>(entity);
+        }
+
+        public async Task<CategoryDto> DeleteAsync(int categoryId, string? userId = null)
+        {
+            var entity = await _uow.CategoryRepository.GetByIdAsync(categoryId);
+            if (entity == null || entity.IsDeleted)
+            {
+                throw new KeyNotFoundException("Category not found");
+            }
+
+            if (entity.IsDefault)
+            {
+                throw new InvalidOperationException("Default categories cannot be deleted");
+            }
+
+            if (entity.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("You cannot delete this category");
+            }
+
+            entity.IsDeleted = true;
+            _uow.CategoryRepository.Update(entity);
+            await _uow.Complete();
+            return mapper.Map<CategoryDto>(entity);
+        }
+
         public async Task CreateMissingCategoriesAsync(IEnumerable<string> categoryNames)
         {
             var incomingCategories = categoryNames
