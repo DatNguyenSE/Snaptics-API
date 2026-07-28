@@ -4,6 +4,7 @@ using DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728100902_AddUserProfileFields")]
+    partial class AddUserProfileFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -135,7 +138,7 @@ namespace DAL.Data.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN",
-                            PasswordHash = "AQAAAAIAAYagAAAAEIJ/ARXJhAXbAHXEXVbyw09OxcaZY0MiObUflqmmo7DxSpStchS652Cys6yRHDpAHA==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEEkRvjpAo3GAwcpCxel6jpoB3MY8+lbY5tuhkYiw2F3iYhkSI/yo1y0ma2fR8Ahvxw==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "STATIC-GUID-SEC-12345",
                             Status = "Active",
@@ -278,12 +281,6 @@ namespace DAL.Data.Migrations
                     b.Property<string>("Icon")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsTrackableInventory")
                         .HasColumnType("bit");
 
@@ -293,12 +290,7 @@ namespace DAL.Data.Migrations
                     b.Property<string>("Status")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(450)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Categories");
                 });
@@ -909,16 +901,6 @@ namespace DAL.Data.Migrations
                     b.Navigation("Budget");
 
                     b.Navigation("Member");
-                });
-
-            modelBuilder.Entity("DAL.Entities.Category", b =>
-                {
-                    b.HasOne("DAL.Entities.AppUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DAL.Entities.IncomeHistory", b =>

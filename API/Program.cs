@@ -61,6 +61,7 @@ builder.Services.AddScoped<IAiInsightService, AiInsightService>();
 builder.Services.AddScoped<IIncomeSourceService, IncomeSourceService>();
 builder.Services.AddScoped<IBudgetIncomeSourceService, BudgetIncomeSourceService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
+builder.Services.AddSingleton<IMaintenanceService, MaintenanceService>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
@@ -173,6 +174,7 @@ var app = builder.Build();
  
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<MaintenanceMiddleware>();
 app.UseCors(x => x
     .SetIsOriginAllowed(origin => true)
     .AllowAnyHeader()
