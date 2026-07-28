@@ -5,6 +5,7 @@ namespace DAL.IRepositories
     public interface IUnitOfWork
     {
         ICategoryRepository CategoryRepository { get; }
+        IUserCategorySettingRepository UserCategorySettingRepository { get; }
         ITransactionDetailRepository TransactionDetailRepository { get; }
         ITransactionRepository TransactionRepository { get; }
         IItemInventoryRepository ItemInventoryRepository { get; }

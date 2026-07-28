@@ -11,7 +11,85 @@ namespace BLL.Service
         public async Task<IEnumerable<CategoryDto>> GetAllAsync(string? userId = null)
         {
             var cates = await _uow.CategoryRepository.FindAsync(c => !c.IsDeleted && (c.IsDefault || (userId != null && c.UserId == userId)));
-            return mapper.Map<IEnumerable<CategoryDto>>(cates);
+            var result = mapper.Map<List<CategoryDto>>(cates);
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var settings = await _uow.UserCategorySettingRepository
+                    .FindAsync(s => s.UserId == userId);
+                var overrides = settings.ToDictionary(s => s.CategoryId, s => s.IsTrackableInventory);
+
+                foreach (var category in result)
+                {
+                    if (overrides.TryGetValue(category.Id, out var isTrackable))
+                    {
+                        category.IsTrackableInventory = isTrackable;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public async Task<bool> GetEffectiveInventoryTrackingAsync(int categoryId, string userId)
+        {
+            var category = await _uow.CategoryRepository.GetByIdAsync(categoryId);
+            if (category == null || category.IsDeleted)
+            {
+                return false;
+            }
+
+            var setting = (await _uow.UserCategorySettingRepository
+                .FindAsync(s => s.UserId == userId && s.CategoryId == categoryId))
+                .FirstOrDefault();
+
+            return setting?.IsTrackableInventory ?? category.IsTrackableInventory;
+        }
+
+        public async Task<bool> SetInventoryTrackingAsync(int categoryId, string userId, bool isTrackableInventory)
+        {
+            var category = await _uow.CategoryRepository.GetByIdAsync(categoryId);
+            if (category == null || category.IsDeleted)
+            {
+                throw new KeyNotFoundException("Category not found");
+            }
+
+            if (!category.IsDefault && category.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("You cannot update this category");
+            }
+
+            // User-owned categories already have their own inventory setting.
+            if (!category.IsDefault)
+            {
+                category.IsTrackableInventory = isTrackableInventory;
+                _uow.CategoryRepository.Update(category);
+                await _uow.Complete();
+                return isTrackableInventory;
+            }
+
+            var setting = (await _uow.UserCategorySettingRepository
+                .FindAsync(s => s.UserId == userId && s.CategoryId == categoryId))
+                .FirstOrDefault();
+
+            if (setting == null)
+            {
+                setting = new UserCategorySetting
+                {
+                    UserId = userId,
+                    CategoryId = categoryId,
+                    IsTrackableInventory = isTrackableInventory
+                };
+                await _uow.UserCategorySettingRepository.AddAsync(setting);
+            }
+            else
+            {
+                setting.IsTrackableInventory = isTrackableInventory;
+                _uow.UserCategorySettingRepository.Update(setting);
+            }
+
+            await _uow.Complete();
+            return isTrackableInventory;
         }
 
         public async Task<CategoryDto> GetByIdAsync(int categoryId)
@@ -51,15 +129,21 @@ namespace BLL.Service
             return mapper.Map<CategoryDto>(entity);
         }
 
-        public async Task<CategoryDto> CreateByNameAsync(string categoryName)
+        public async Task<CategoryDto> CreateByNameAsync(string categoryName, string userId)
         {
-            var isDuplicate = await _uow.CategoryRepository.AnyAsync(c => c.Name == categoryName);
+            var isDuplicate = await _uow.CategoryRepository.AnyAsync(c => !c.IsDeleted &&
+                (c.IsDefault || c.UserId == userId) && c.Name == categoryName);
             if (isDuplicate)
             {
                 throw new InvalidOperationException("Category already exists");
             }
 
-            var entity = new Category { Name = categoryName };
+            var entity = new Category
+            {
+                Name = categoryName,
+                UserId = userId,
+                IsDefault = false
+            };
             await _uow.CategoryRepository.AddAsync(entity);
             await _uow.Complete();
             return mapper.Map<CategoryDto>(entity);
@@ -73,6 +157,11 @@ namespace BLL.Service
             if (entity == null || entity.IsDeleted)
             {
                 throw new KeyNotFoundException("Category not found");
+            }
+
+            if (entity.IsDefault)
+            {
+                throw new UnauthorizedAccessException("System categories cannot be updated directly. Use the user category setting endpoint.");
             }
 
             if (!entity.IsDefault && entity.UserId != userId)

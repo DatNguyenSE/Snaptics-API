@@ -12,7 +12,8 @@ namespace BLL.Service
         IUnitOfWork _uow,
         IMapper mapper,
         IItemDictionaryService _itemDictionaryService,
-        IBudgetService _budgetService
+        IBudgetService _budgetService,
+        ICategoryService _categoryService
     ) : ITransactionService
     {
         public async Task<IEnumerable<TransactionDto>
@@ -72,9 +73,13 @@ namespace BLL.Service
             {
                 // 2. Lấy các category đã có từ DB (chỉ query 1 lần)
                 var existingCategories = await _uow.CategoryRepository
-                    .FindAsync(c => categoryNames.Contains(c.Name!));
+                    .FindAsync(c => !c.IsDeleted && categoryNames.Contains(c.Name!) &&
+                        (c.IsDefault || c.UserId == dto.UserId));
 
-                foreach (var cat in existingCategories)
+                foreach (var cat in existingCategories
+                    .OrderByDescending(c => c.UserId == dto.UserId)
+                    .GroupBy(c => c.Name!, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First()))
                 {
                     categoryDict[cat.Name!] = cat.Id;
                 }
@@ -86,7 +91,12 @@ namespace BLL.Service
                 // 4. Batch Insert các category mới
                 if (missingNames.Any())
                 {
-                    var newCategories = missingNames.Select(name => new Category { Name = name }).ToList();
+                    var newCategories = missingNames.Select(name => new Category
+                    {
+                        Name = name,
+                        UserId = dto.UserId,
+                        IsDefault = false
+                    }).ToList();
                     await _uow.CategoryRepository.AddRangeAsync(newCategories);
                     await _uow.Complete(); // Lưu để EF Core sinh ra ID cho các newCategories
 
@@ -149,10 +159,7 @@ namespace BLL.Service
             // 8. Auto create ItemInventory cho category được tracking
             foreach (var detail in transaction.TransactionDetails)
             {
-                var category = await _uow.CategoryRepository
-                    .GetByIdAsync(detail.CategoryId);
-
-                if (category != null && category.IsTrackableInventory)
+                if (await _categoryService.GetEffectiveInventoryTrackingAsync(detail.CategoryId, transaction.UserId))
                 {
                     var inventory = new ItemInventory
                     {

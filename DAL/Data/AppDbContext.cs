@@ -13,6 +13,7 @@ namespace DAL.Data
     {
         
         public DbSet<Category> Categories { get; set; }
+        public DbSet<UserCategorySetting> UserCategorySettings { get; set; }
         public DbSet<ItemInventory> ItemInventories { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<TransactionDetail> TransactionDetails { get; set; }
@@ -143,6 +144,23 @@ namespace DAL.Data
                 .WithMany()
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserCategorySetting>()
+                .HasIndex(s => new { s.UserId, s.CategoryId })
+                .IsUnique();
+
+            builder.Entity<UserCategorySetting>()
+                .HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserCategorySetting>()
+                .HasOne(s => s.Category)
+                .WithMany()
+                .HasForeignKey(s => s.CategoryId)
+                // Avoid SQL Server's multiple cascade path through User -> Categories.
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

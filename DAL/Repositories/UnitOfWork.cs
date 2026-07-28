@@ -10,6 +10,7 @@ namespace DAL.Repositories
     public class UnitOfWork(AppDbContext _context) : IUnitOfWork
     {
         private ICategoryRepository? _categoryRepository;
+        private IUserCategorySettingRepository? _userCategorySettingRepository;
         private ITransactionDetailRepository? _transactionDetailRepository;
         private ITransactionRepository? _transactionRepository;
         private IItemInventoryRepository? _itemInventoryRepository;
@@ -27,6 +28,8 @@ namespace DAL.Repositories
         //when other function call (uow.ProductRepository) -> check and avoid create multiple instance
         public ICategoryRepository CategoryRepository => _categoryRepository 
             ??= new CategoryRepository(_context);  
+        public IUserCategorySettingRepository UserCategorySettingRepository => _userCategorySettingRepository
+            ??= new UserCategorySettingRepository(_context);
         public ITransactionDetailRepository TransactionDetailRepository => _transactionDetailRepository
             ??= new TransactionDetailRepository(_context);
 

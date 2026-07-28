@@ -75,8 +75,26 @@ namespace BLL.Service
 
             // Lấy danh sách category từ DB
             var categories = await _unitOfWork.CategoryRepository.FindAsync(c => !c.IsDeleted && (c.IsDefault || c.UserId == userId));
-            var categoryNames = categories.Select(c => c.Name).ToList();
-            var categoryListStr = string.Join(", ", categoryNames);
+            var userCategoryNames = categories
+                .Where(c => c.UserId == userId && !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => c.Name!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var userCategoryNameSet = userCategoryNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var systemCategoryNames = categories
+                .Where(c => c.IsDefault && !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => c.Name!.Trim())
+                .Where(name => !userCategoryNameSet.Contains(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var userCategoryListStr = userCategoryNames.Any()
+                ? string.Join(", ", userCategoryNames)
+                : "(chưa có danh mục riêng)";
+            var systemCategoryListStr = systemCategoryNames.Any()
+                ? string.Join(", ", systemCategoryNames)
+                : "(không có danh mục hệ thống bổ sung)";
 
             // 2. Chuyển đổi sang chuỗi Base64
             string base64Image = Convert.ToBase64String(imageBytes);
@@ -98,9 +116,11 @@ namespace BLL.Service
             promptBuilder.Append("   - BẮT BUỘC cung cấp đơn vị tính (unit) bằng tiếng Việt (ví dụ: 'cái', 'chiếc', 'hộp', 'ly', 'quyển', 'bộ', v.v.).\n\n");
 
             promptBuilder.Append("3. DANH MỤC (category):\n");
-            promptBuilder.Append($"   - Dưới đây là danh sách CÁC DANH MỤC HỢP LỆ: [{categoryListStr}].\n");
-            promptBuilder.Append("   - BẮT BUỘC chọn MỘT danh mục chính xác nhất từ danh sách trên để gán cho vật thể.\n");
-            promptBuilder.Append("   - Nếu vật thể KHÔNG phù hợp với bất kỳ danh mục nào trong danh sách trên, hoặc không thể nhận diện được, BẮT BUỘC trả về 'Khác'. KHÔNG ĐƯỢC tự bịa ra danh mục ngoài danh sách.\n\n");
+            promptBuilder.Append($"   - DANH MỤC RIÊNG CỦA USER (ưu tiên): [{userCategoryListStr}].\n");
+            promptBuilder.Append($"   - DANH MỤC HỆ THỐNG: [{systemCategoryListStr}].\n");
+            promptBuilder.Append("   - Nếu danh mục riêng của USER trùng hoặc tương đương với danh mục hệ thống, BẮT BUỘC ưu tiên danh mục riêng của USER.\n");
+            promptBuilder.Append("   - BẮT BUỘC chọn MỘT tên danh mục chính xác từ hai danh sách trên.\n");
+            promptBuilder.Append("   - Nếu vật thể không phù hợp với danh mục nào, hoặc không thể nhận diện được, trả về 'Khác'. KHÔNG ĐƯỢC tự bịa danh mục ngoài danh sách.\n\n");
 
             if (estimatePrice)
             {

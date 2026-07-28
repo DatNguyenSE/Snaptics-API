@@ -46,7 +46,13 @@ namespace API.Controllers
         [Authorize]
         public async Task<ActionResult<CategoryDto>> CreateCategoryByName([FromBody] string categoryName)
         {
-            var category = await _cateService.CreateByNameAsync(categoryName);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var category = await _cateService.CreateByNameAsync(categoryName, userId);
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
 
@@ -71,6 +77,31 @@ namespace API.Controllers
             catch (UnauthorizedAccessException)
             {
                 return Forbid();
+            }
+        }
+
+        [HttpPut("{id}/inventory-tracking")]
+        [Authorize]
+        public async Task<ActionResult> SetInventoryTracking(int id, [FromBody] bool isTrackableInventory)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var value = await _cateService.SetInventoryTrackingAsync(id, userId, isTrackableInventory);
+                return Ok(new { categoryId = id, isTrackableInventory = value });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
         }
 
