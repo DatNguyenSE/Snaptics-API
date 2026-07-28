@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using BLL.Dtos;
 
-namespace BLL.Dtos.AccountDto
+namespace BLL.Dtos.Admin
 {
     public class AdminUserStatsDto
     {
