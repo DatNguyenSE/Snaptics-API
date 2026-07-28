@@ -23,6 +23,9 @@ namespace API.Mappings
             CreateMap<ItemDictionary, ItemDictionaryDto>().ReverseMap();
             CreateMap<IncomeSource, IncomeSourceDto>().ReverseMap();
             CreateMap<BudgetIncomeSource, BudgetIncomeSourceDto>().ReverseMap();
+            CreateMap<DAL.Entities.SupportTicket, BLL.Dtos.Support.SupportTicketDto>().ReverseMap();
+            CreateMap<DAL.Entities.SupportMessage, BLL.Dtos.Support.SupportMessageDto>().ReverseMap();
+            CreateMap<DAL.Entities.SupportAttachment, BLL.Dtos.Support.SupportAttachmentDto>().ReverseMap();
         }
     }
 }

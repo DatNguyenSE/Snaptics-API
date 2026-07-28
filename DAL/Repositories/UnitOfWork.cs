@@ -20,6 +20,9 @@ namespace DAL.Repositories
         private IIncomeHistoryRepository? _incomeHistoryRepository;
         private IBudgetMemberRepository? _budgetMemberRepository;
         private IBudgetIncomeSourceRepository? _budgetIncomeSourceRepository;
+        private ISupportTicketRepository? _supportTicketRepository;
+        private ISupportMessageRepository? _supportMessageRepository;
+        private ISupportAttachmentRepository? _supportAttachmentRepository;
 
         //when other function call (uow.ProductRepository) -> check and avoid create multiple instance
         public ICategoryRepository CategoryRepository => _categoryRepository 
@@ -52,6 +55,12 @@ namespace DAL.Repositories
             ??= new BudgetMemberRepository(_context);
         public IBudgetIncomeSourceRepository BudgetIncomeSourceRepository => _budgetIncomeSourceRepository 
             ??= new BudgetIncomeSourceRepository(_context);
+        public ISupportTicketRepository SupportTicketRepository => _supportTicketRepository
+                ??= new SupportTicketRepository(_context);
+        public ISupportMessageRepository SupportMessageRepository => _supportMessageRepository
+            ??= new SupportMessageRepository(_context);
+        public ISupportAttachmentRepository SupportAttachmentRepository => _supportAttachmentRepository
+            ??= new SupportAttachmentRepository(_context);
         public async Task<bool> Complete()
         {
             return await _context.SaveChangesAsync() > 0;

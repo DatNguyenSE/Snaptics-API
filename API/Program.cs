@@ -60,6 +60,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddScoped<IAiInsightService, AiInsightService>();
 builder.Services.AddScoped<IIncomeSourceService, IncomeSourceService>();
 builder.Services.AddScoped<IBudgetIncomeSourceService, BudgetIncomeSourceService>();
+builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 
 // AI Services: Gemini Vision + Azure Document Intelligence
 builder.Services.AddScoped<IAiService, AiService>();
@@ -150,7 +151,7 @@ builder.Services.AddHangfire(configuration => configuration
 builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
 builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
-builder.Services.AddScoped<IDashboardService, DashboardService>();
+            builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());

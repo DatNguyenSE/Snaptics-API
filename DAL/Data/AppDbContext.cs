@@ -22,8 +22,10 @@ namespace DAL.Data
         public DbSet<IncomeSource> IncomeSources { get; set; }
         public DbSet<IncomeHistory> IncomeHistories { get; set; }
         public DbSet<BudgetMember> BudgetMembers { get; set; }
-
         public DbSet<BudgetIncomeSource> BudgetIncomeSources { get; set; }
+        public DbSet<SupportTicket> SupportTickets { get; set; }
+        public DbSet<SupportMessage> SupportMessages { get; set; }
+        public DbSet<SupportAttachment> SupportAttachments { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -70,7 +72,44 @@ namespace DAL.Data
                         UserId = adminId
                     }
                 );
-           
+
+            // --- Support Ticket Configurations ---
+            builder.Entity<SupportTicket>()
+                .HasOne(st => st.User)
+                .WithMany()
+                .HasForeignKey(st => st.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupportTicket>()
+                .HasOne(st => st.AssignedTo)
+                .WithMany()
+                .HasForeignKey(st => st.AssignedToId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<SupportMessage>()
+                .HasOne(sm => sm.Ticket)
+                .WithMany(t => t.Messages)
+                .HasForeignKey(sm => sm.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SupportMessage>()
+                .HasOne(sm => sm.Sender)
+                .WithMany()
+                .HasForeignKey(sm => sm.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupportAttachment>()
+                .HasOne(sa => sa.Ticket)
+                .WithMany(t => t.Attachments)
+                .HasForeignKey(sa => sa.TicketId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupportAttachment>()
+                .HasOne(sa => sa.Message)
+                .WithMany(m => m.Attachments)
+                .HasForeignKey(sa => sa.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // --- Cấu hình Entity ---
             builder.Entity<Transaction>().Property(t => t.TotalAmount).HasPrecision(18, 2);
             builder.Entity<TransactionDetail>().Property(td => td.Price).HasPrecision(18, 2);
