@@ -65,7 +65,7 @@ namespace API.Controllers
             {
                 // Handle multiple "Items" form fields (e.g., from Swagger's "Add object item" button)
                 var itemsString = itemsValues.Count > 1 
-                    ? "[" + string.Join(",", itemsValues) + "]" 
+                    ? "[" + string.Join(",", itemsValues.ToArray()) + "]" 
                     : itemsValues.ToString();
                 
                 // If it's a single item but not wrapped in an array, wrap it
