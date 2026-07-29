@@ -184,6 +184,10 @@ namespace BLL.Service
             {
                 throw new KeyNotFoundException("Budget not found");
             }
+            if (existingEntity.IsDefault)
+            {
+                throw new InvalidOperationException("Không thể xóa ví đang được đặt làm mặc định.");
+            }
             existingEntity.IsActive = false;
             _uow.BudgetRepository.Update(existingEntity);
             await _uow.Complete();
@@ -193,7 +197,6 @@ namespace BLL.Service
         public async Task<BudgetDto> DepositAsync(string userId, int budgetId, DepositBudgetDto dto)
         {
             ArgumentNullException.ThrowIfNull(dto);
-            if (dto.Amount <= 0) throw new ArgumentException("Số tiền nạp phải lớn hơn 0");
 
             var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
             if (budget == null || !budget.IsActive)
@@ -360,11 +363,18 @@ namespace BLL.Service
 
             var history = await _uow.IncomeHistoryRepository.FindAsync(h => h.BudgetId == budgetId);
             
+            var incomeSourceIds = history.Where(h => h.IncomeSourceId.HasValue).Select(h => h.IncomeSourceId.Value).Distinct().ToList();
+            var incomeSources = await _uow.IncomeSourceRepository.FindAsync(s => incomeSourceIds.Contains(s.Id));
+            var sourceDict = incomeSources.ToDictionary(s => s.Id, s => s.Name);
+            
             var result = history.OrderByDescending(h => h.ReceivedDate).Select(h => new IncomeHistoryDto
             {
                 Id = h.Id,
                 BudgetId = h.BudgetId,
                 IncomeSourceId = h.IncomeSourceId,
+                IncomeSourceName = h.IncomeSourceId.HasValue && sourceDict.ContainsKey(h.IncomeSourceId.Value) 
+                    ? sourceDict[h.IncomeSourceId.Value] 
+                    : null,
                 Amount = h.Amount,
                 ReceivedDate = h.ReceivedDate,
                 Note = h.Note
