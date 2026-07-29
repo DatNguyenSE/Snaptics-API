@@ -307,17 +307,17 @@ namespace BLL.Service
                 var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
                 if (transaction == null) throw new Exception("Transaction not found");
 
-                var budget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
-                if (budget == null) throw new Exception("Budget not found");
+                var oldBudget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
+                if (oldBudget == null) throw new Exception("Old Budget not found");
 
                 if (transactionDto.IsDeleted && !transaction.IsDeleted)
                 {
                     decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
-                    budget.CurrentAmount = budget.CurrentAmount - oldRealValue;
+                    oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValue;
                     
                     transaction.IsDeleted = true;
                     
-                    _uow.BudgetRepository.Update(budget);
+                    _uow.BudgetRepository.Update(oldBudget);
                     _uow.TransactionRepository.Update(transaction);
                     await _uow.Complete();
                     await dbTransaction.CommitAsync();
@@ -376,11 +376,27 @@ namespace BLL.Service
                 }
 
                 transaction.TotalAmount = newTotalAmount;
-
                 decimal newRealValue = transaction.IsExpense ? -newTotalAmount : newTotalAmount;
-                budget.CurrentAmount = budget.CurrentAmount - oldRealValueForUpdate + newRealValue;
 
-                _uow.BudgetRepository.Update(budget);
+                if (transactionDto.BudgetId != transaction.BudgetId)
+                {
+                    oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate;
+                    _uow.BudgetRepository.Update(oldBudget);
+
+                    var newBudget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId);
+                    if (newBudget == null) throw new Exception("New Budget not found");
+
+                    newBudget.CurrentAmount = newBudget.CurrentAmount + newRealValue;
+                    _uow.BudgetRepository.Update(newBudget);
+
+                    transaction.BudgetId = transactionDto.BudgetId;
+                }
+                else
+                {
+                    oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate + newRealValue;
+                    _uow.BudgetRepository.Update(oldBudget);
+                }
+
                 _uow.TransactionRepository.Update(transaction);
                 await _uow.Complete();
 
