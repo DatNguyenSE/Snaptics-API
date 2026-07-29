@@ -157,6 +157,9 @@ namespace API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<TransactionDto>>UpdateTransaction(int id, [FromBody] TransactionDto transactionDto)
         {
+            var userId = User.GetUserId();
+            if (userId == null) return Unauthorized();
+            transactionDto.UserId = userId;
             var updateTransaction = await _transactionService.UpdateAsync(id, transactionDto);
             return Ok(updateTransaction);
         }
@@ -164,7 +167,9 @@ namespace API.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<TransactionDto>> DeleteTransaction(int id)
         {
-            var deletedTransaction = await _transactionService.DeleteAsync(id);
+            var userId = User.GetUserId();
+            if (userId == null) return Unauthorized();
+            var deletedTransaction = await _transactionService.DeleteAsync(id, userId);
             return Ok(deletedTransaction);
         }
 

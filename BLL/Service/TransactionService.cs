@@ -29,16 +29,64 @@ namespace BLL.Service
             return mapper.Map<TransactionDto>(transaction);
         }
 
+        private async Task CheckBudgetPermissionAsync(int budgetId, string userId)
+        {
+            var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
+            if (budget == null || !budget.IsActive)
+                throw new Exception("Ví ngân sách không tồn tại hoặc đã bị khóa.");
+
+            if (budget.UserId == userId) return;
+
+            var members = await _uow.BudgetMemberRepository.FindAsync(m => m.BudgetId == budgetId && m.MemberId == userId);
+            var member = members.FirstOrDefault();
+                
+            if (member == null || member.Status != DAL.Enums.InvitationStatus.Accepted || member.Role != DAL.Enums.BudgetRole.Editor)
+            {
+                throw new Exception("Bạn không có quyền thực hiện thao tác trên ví ngân sách này.");
+            }
+        }
+
         public async Task<TransactionDto> CreateAsync(TransactionDto transactionDto)
         {
-            var entity = mapper.Map<DAL.Entities.Transaction>(transactionDto);
-            if (entity == null)
+            if (transactionDto == null) throw new ArgumentNullException(nameof(transactionDto));
+
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
             {
-                throw new Exception("Failed to create transaction");
+                if (transactionDto.BudgetId.HasValue)
+                {
+                    await CheckBudgetPermissionAsync(transactionDto.BudgetId.Value, transactionDto.UserId);
+                }
+
+                var entity = mapper.Map<DAL.Entities.Transaction>(transactionDto);
+                if (entity == null)
+                {
+                    throw new Exception("Failed to create transaction");
+                }
+
+                await _uow.TransactionRepository.AddAsync(entity);
+
+                if (transactionDto.BudgetId.HasValue)
+                {
+                    var budget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId.Value);
+                    if (budget != null)
+                    {
+                        decimal realValue = transactionDto.IsExpense ? -transactionDto.TotalAmount : transactionDto.TotalAmount;
+                        budget.CurrentAmount += realValue;
+                        _uow.BudgetRepository.Update(budget);
+                    }
+                }
+
+                await _uow.Complete();
+                await dbTransaction.CommitAsync();
+
+                return mapper.Map<TransactionDto>(entity);
             }
-            await _uow.TransactionRepository.AddAsync(entity);
-            await _uow.Complete();
-            return mapper.Map<TransactionDto>(entity);
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
         //hàm này sẽ tạo Transaction + TransactionDetails + Category (nếu chưa có) + ItemInventory (nếu category được tracking)
@@ -319,6 +367,7 @@ namespace BLL.Service
                 {
                     if (oldBudget != null)
                     {
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId);
                         decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
                         oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValue;
                         _uow.BudgetRepository.Update(oldBudget);
@@ -390,12 +439,14 @@ namespace BLL.Service
                 {
                     if (oldBudget != null)
                     {
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId);
                         oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate;
                         _uow.BudgetRepository.Update(oldBudget);
                     }
 
                     if (transactionDto.BudgetId.HasValue)
                     {
+                        await CheckBudgetPermissionAsync(transactionDto.BudgetId.Value, transactionDto.UserId);
                         var newBudget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId.Value);
                         if (newBudget != null)
                         {
@@ -410,6 +461,7 @@ namespace BLL.Service
                 {
                     if (oldBudget != null)
                     {
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId);
                         oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate + newRealValue;
                         _uow.BudgetRepository.Update(oldBudget);
                     }
@@ -428,7 +480,7 @@ namespace BLL.Service
             }
         }
 
-        public async Task<TransactionDto> DeleteAsync(int transactionId)
+        public async Task<TransactionDto> DeleteAsync(int transactionId, string userId)
         {
             using var dbTransaction = await _uow.BeginTransactionAsync();
             try
@@ -439,6 +491,7 @@ namespace BLL.Service
                 var budget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
                 if (budget != null)
                 {
+                    await CheckBudgetPermissionAsync(budget.Id, userId);
                     decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
                     budget.CurrentAmount = budget.CurrentAmount - oldRealValue;
                     _uow.BudgetRepository.Update(budget);

@@ -9,6 +9,7 @@ namespace BLL.Interfaces.IServices
         Task<IEnumerable<BudgetDto>> GetAllAsync();
 
         Task<IEnumerable<BudgetDto>> GetByUserIdAsync(string userId);
+        Task<IEnumerable<BudgetDto>> GetAllAccessibleBudgetsAsync(string userId);
         Task<BudgetDto> GetByIdAsync(int id);
         Task<BudgetDto> CreateAsync(string userId, BudgetDto budgetDto);
         Task<BudgetDto> UpdateAsync(int id, BudgetDto budgetDto);

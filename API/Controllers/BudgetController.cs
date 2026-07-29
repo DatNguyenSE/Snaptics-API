@@ -30,6 +30,22 @@ namespace API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("all-accessible")]
+        public async Task<ActionResult<IEnumerable<BudgetDto>>> GetAllAccessibleBudgets()
+        {
+            try
+            {
+                var userId = User.GetUserId();
+                if (userId == null) return Unauthorized("User ID not found in claims.");
+                var budgets = await _budgetService.GetAllAccessibleBudgetsAsync(userId);
+                return Ok(budgets);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
         [HttpGet]
         [Authorize(Roles = "admin")]
         public async Task<ActionResult<IEnumerable<BudgetDto>>> GetBudgets()

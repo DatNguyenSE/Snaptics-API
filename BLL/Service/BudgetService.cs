@@ -28,6 +28,27 @@ namespace BLL.Service
             return _mapper.Map<IEnumerable<BudgetDto>>(budgets);
         }
 
+        public async Task<IEnumerable<BudgetDto>> GetAllAccessibleBudgetsAsync(string userId)
+        {
+            var ownedBudgets = (await _uow.BudgetRepository.GetByUserIdAsync(userId)).Where(b => b.IsActive);
+
+            var budgetMembers = await _uow.BudgetMemberRepository.FindAsync(m => m.MemberId == userId && m.Status == DAL.Enums.InvitationStatus.Accepted);
+            var sharedBudgetIds = budgetMembers.Select(m => m.BudgetId).Distinct().ToList();
+
+            var sharedBudgets = new List<DAL.Entities.Budget>();
+            foreach (var id in sharedBudgetIds)
+            {
+                var budget = await _uow.BudgetRepository.GetByIdAsync(id);
+                if (budget != null && budget.IsActive)
+                {
+                    sharedBudgets.Add(budget);
+                }
+            }
+
+            var allBudgets = ownedBudgets.Union(sharedBudgets).DistinctBy(b => b.Id).ToList();
+            return _mapper.Map<IEnumerable<BudgetDto>>(allBudgets);
+        }
+
         public async Task<BudgetDto> GetByIdAsync(int id)
         {
             var budget = await _uow.BudgetRepository.GetByIdAsync(id);
