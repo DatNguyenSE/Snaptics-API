@@ -148,5 +148,19 @@ namespace API.Controllers
             var result = await _dashboardService.GetSpendingComparisonAsync(userId);
             return Ok(result);
         }
+
+        [HttpGet("active-hours")]
+        public async Task<IActionResult> GetActiveHours(
+            [FromQuery] int? month = null,
+            [FromQuery] int? year = null)
+        {
+            var userId = User.GetUserId();
+            var now = DateTime.UtcNow.AddHours(7);
+            var fromDate = new DateTime(year ?? now.Year, month ?? now.Month, 1);
+            var toDate = fromDate.AddMonths(1).AddTicks(-1);
+
+            var result = await _dashboardService.GetActiveHoursAsync(userId, fromDate, toDate);
+            return Ok(result);
+        }
     }
 }

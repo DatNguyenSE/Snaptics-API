@@ -12,5 +12,6 @@ namespace BLL.Interfaces.IServices
         Task<CategorySummaryResponseDto> GetCategorySummaryAsync(string userId, DateTime fromDate, DateTime toDate);
         Task<List<BarChartDto>> GetTrendSummaryAsync(string userId, DateTime fromDate, DateTime toDate);
         Task<SpendingComparisonDto> GetSpendingComparisonAsync(string userId);
+        Task<List<ActiveHourDto>> GetActiveHoursAsync(string userId, DateTime fromDate, DateTime toDate);
     }
 }

@@ -231,6 +231,36 @@ namespace BLL.Service
             };
         }
 
+        public async Task<List<ActiveHourDto>> GetActiveHoursAsync(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var startDate = fromDate.Date;
+            var endDateExclusive = toDate.Date.AddDays(1);
+
+            var transactions = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId
+                    && !t.IsDeleted
+                    && t.Status == TransactionStatusType.Completed
+                    && t.CreatedAt >= startDate
+                    && t.CreatedAt < endDateExclusive)
+                .Select(t => new { t.CreatedAt, t.TotalAmount })
+                .ToListAsync();
+
+            return transactions
+                .GroupBy(t => t.CreatedAt.Hour)
+                .Select(group => new ActiveHourDto
+                {
+                    Hour = group.Key,
+                    Label = $"{group.Key:00}:00 - {(group.Key + 1) % 24:00}:00",
+                    TransactionCount = group.Count(),
+                    TotalAmount = group.Sum(t => t.TotalAmount),
+                })
+                .OrderByDescending(item => item.TransactionCount)
+                .ThenByDescending(item => item.TotalAmount)
+                .Take(5)
+                .ToList();
+        }
+
         private List<BarChartDto> BuildHourlyBarChart(List<Transaction> transactions, DateTime dayStart)
         {
             var aggregates = transactions
