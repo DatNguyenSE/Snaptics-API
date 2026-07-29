@@ -58,6 +58,7 @@ namespace DAL.Repositories
             ??= new BudgetMemberRepository(_context);
         public IBudgetIncomeSourceRepository BudgetIncomeSourceRepository => _budgetIncomeSourceRepository 
             ??= new BudgetIncomeSourceRepository(_context);
+
         public ISupportTicketRepository SupportTicketRepository => _supportTicketRepository
                 ??= new SupportTicketRepository(_context);
         public ISupportMessageRepository SupportMessageRepository => _supportMessageRepository
@@ -72,6 +73,11 @@ namespace DAL.Repositories
         public bool HasChange()
         {
             return _context.ChangeTracker.HasChanges();
+        }
+
+        public async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await _context.Database.BeginTransactionAsync();
         }
     }
 }

@@ -13,6 +13,7 @@ namespace DAL.IRepositories
         IBudgetRepository BudgetRepository { get; }
         INotificationRepository NotificationRepository { get; }
         IIncomeSourceRepository IncomeSourceRepository { get; }
+
         IIncomeHistoryRepository IncomeHistoryRepository { get; }
         IBudgetMemberRepository BudgetMemberRepository { get; }
         IBudgetIncomeSourceRepository BudgetIncomeSourceRepository { get; }
@@ -21,5 +22,6 @@ namespace DAL.IRepositories
         ISupportAttachmentRepository SupportAttachmentRepository { get; }
         Task<bool> Complete();
         bool HasChange();
+        Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync();
     }
 }

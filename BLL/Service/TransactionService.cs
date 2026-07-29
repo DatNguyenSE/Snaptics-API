@@ -301,29 +301,126 @@ namespace BLL.Service
 
         public async Task<TransactionDto> UpdateAsync(int transactionId, TransactionDto transactionDto)
         {
-            var existingTransaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
-            if (existingTransaction == null)
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
             {
-                throw new Exception("Transaction not found");
-            }
+                var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
+                if (transaction == null) throw new Exception("Transaction not found");
 
-            //update data
-            mapper.Map(transactionDto, existingTransaction);
-            _uow.TransactionRepository.Update(existingTransaction);
-            await _uow.Complete();
-            return mapper.Map<TransactionDto>(existingTransaction);
+                var budget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
+                if (budget == null) throw new Exception("Budget not found");
+
+                if (transactionDto.IsDeleted && !transaction.IsDeleted)
+                {
+                    decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+                    budget.CurrentAmount = budget.CurrentAmount - oldRealValue;
+                    
+                    transaction.IsDeleted = true;
+                    
+                    _uow.BudgetRepository.Update(budget);
+                    _uow.TransactionRepository.Update(transaction);
+                    await _uow.Complete();
+                    await dbTransaction.CommitAsync();
+                    return mapper.Map<TransactionDto>(transaction);
+                }
+
+                decimal oldRealValueForUpdate = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+
+                transaction.Name = transactionDto.Name;
+                transaction.IsExpense = transactionDto.IsExpense;
+                transaction.Note = transactionDto.Note;
+                transaction.TransactionDate = transactionDto.TransactionDate;
+                transaction.ImageKey = transactionDto.ImageKey;
+                transaction.Status = transactionDto.Status;
+
+                decimal newTotalAmount = 0;
+
+                foreach (var detailDto in transactionDto.TransactionDetails)
+                {
+                    if (detailDto.Id == 0)
+                    {
+                        var newDetail = new TransactionDetail 
+                        { 
+                            ItemName = detailDto.ItemName, 
+                            Price = detailDto.Price,
+                            Quantity = detailDto.Quantity,
+                            CategoryId = detailDto.CategoryId,
+                            EstimatedCalories = detailDto.EstimatedCalories,
+                            Unit = detailDto.Unit
+                        };
+                        transaction.TransactionDetails.Add(newDetail);
+                        newTotalAmount += detailDto.Price * detailDto.Quantity;
+                    }
+                    else
+                    {
+                        var existingDetail = transaction.TransactionDetails.FirstOrDefault(d => d.Id == detailDto.Id);
+                        if (existingDetail != null)
+                        {
+                            if (detailDto.IsDeleted)
+                            {
+                                _uow.TransactionDetailRepository.Delete(existingDetail);
+                            }
+                            else
+                            {
+                                existingDetail.ItemName = detailDto.ItemName;
+                                existingDetail.Price = detailDto.Price;
+                                existingDetail.Quantity = detailDto.Quantity;
+                                existingDetail.CategoryId = detailDto.CategoryId;
+                                existingDetail.EstimatedCalories = detailDto.EstimatedCalories;
+                                existingDetail.Unit = detailDto.Unit;
+
+                                newTotalAmount += detailDto.Price * detailDto.Quantity;
+                            }
+                        }
+                    }
+                }
+
+                transaction.TotalAmount = newTotalAmount;
+
+                decimal newRealValue = transaction.IsExpense ? -newTotalAmount : newTotalAmount;
+                budget.CurrentAmount = budget.CurrentAmount - oldRealValueForUpdate + newRealValue;
+
+                _uow.BudgetRepository.Update(budget);
+                _uow.TransactionRepository.Update(transaction);
+                await _uow.Complete();
+
+                await dbTransaction.CommitAsync();
+                return mapper.Map<TransactionDto>(transaction);
+            }
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<TransactionDto> DeleteAsync(int transactionId)
         {
-            var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
-            if (transaction == null)
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
             {
-                throw new Exception("Transaction not found");
+                var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
+                if (transaction == null) throw new Exception("Transaction not found");
+
+                var budget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
+                if (budget != null)
+                {
+                    decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+                    budget.CurrentAmount = budget.CurrentAmount - oldRealValue;
+                    _uow.BudgetRepository.Update(budget);
+                }
+
+                _uow.TransactionRepository.Delete(transaction);
+                await _uow.Complete();
+                await dbTransaction.CommitAsync();
+
+                return mapper.Map<TransactionDto>(transaction);
             }
-            _uow.TransactionRepository.Delete(transaction);
-            await _uow.Complete();
-            return mapper.Map<TransactionDto>(transaction);
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<IEnumerable<TransactionDto>> GetUnconfirmedTransactionsByDateAsync(DateTime date)

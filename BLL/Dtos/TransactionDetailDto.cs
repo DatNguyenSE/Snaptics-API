@@ -15,5 +15,6 @@ namespace BLL.Dtos
 
         public int? EstimatedCalories { get; set; }
         public string Unit { get; set; } = "cái";
+        public bool IsDeleted { get; set; } = false;
     }
 }

@@ -19,6 +19,7 @@ namespace BLL.Dtos
         public DateTime CreatedAt { get; set; }
         public string? Note { get; set; }
         public bool IsExpense { get; set; }
+        public bool IsDeleted { get; set; }
 
         public List<TransactionDetailDto> TransactionDetails { get; set; } = new List<TransactionDetailDto>();
     }
