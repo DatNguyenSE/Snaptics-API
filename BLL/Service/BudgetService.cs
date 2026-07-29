@@ -79,26 +79,66 @@ namespace BLL.Service
             }
             var entity = _mapper.Map<DAL.Entities.Budget>(budgetDto);
 
+            // QUAN TRỌNG: AutoMapper tự động map mảng BudgetIncomeSources từ DTO sang Entity.
+            // Khi gọi _uow.BudgetRepository.AddAsync(entity), EF Core sẽ tự động insert các phần tử trong mảng này.
+            // Do bên dưới chúng ta tự lặp mảng (để lọc data rác và lưu thêm IncomeHistory), 
+            // nên cần Clear mảng này đi để tránh bị EF Core insert trùng lặp (lỗi nhân đôi).
+            entity.BudgetIncomeSources?.Clear();
+
             entity.UserId = userId;
 
-            // Tính tổng tiền từ các IncomeSource
-            var total = budgetDto.BudgetIncomeSources.Sum(x => x.Amount);
+            // Tính tổng tiền từ các nguồn thu được chọn
+            decimal totalFromSources = budgetDto.BudgetIncomeSources
+                .Where(x => x.IncomeSourceId > 0)
+                .Sum(x => x.Amount);
 
-            entity.Amount = total;
-            entity.CurrentAmount = total;
+            // Ưu tiên lấy số tiền do người dùng nhập (nếu lớn hơn tổng nguồn thu).
+            // Đề phòng FE truyền nhầm vào CurrentAmount thay vì Amount, ta lấy số lớn nhất trong cả 2.
+            decimal userProvidedAmount = Math.Max(budgetDto.Amount, budgetDto.CurrentAmount);
+            decimal finalAmount = userProvidedAmount > totalFromSources ? userProvidedAmount : totalFromSources;
+            
+            entity.Amount = finalAmount;
+            entity.CurrentAmount = finalAmount;
 
             // Lưu Budget trước để có Id
             await _uow.BudgetRepository.AddAsync(entity);
             await _uow.Complete();
 
-            // Lưu BudgetIncomeSource
+            // Lưu BudgetIncomeSource và IncomeHistory
             foreach (var item in budgetDto.BudgetIncomeSources)
             {
+                // Bỏ qua các object rỗng (incomeSourceId = 0) do FE gửi thừa
+                if (item.IncomeSourceId <= 0) continue; 
+
                 await _uow.BudgetIncomeSourceRepository.AddAsync(new DAL.Entities.BudgetIncomeSource
                 {
                     BudgetId = entity.Id,
                     IncomeSourceId = item.IncomeSourceId,
                     Amount = item.Amount
+                });
+
+                await _uow.IncomeHistoryRepository.AddAsync(new DAL.Entities.IncomeHistory
+                {
+                    BudgetId = entity.Id,
+                    IncomeSourceId = item.IncomeSourceId,
+                    Amount = item.Amount,
+                    ReceivedDate = DateTime.UtcNow.AddHours(7),
+                    Note = "Nạp từ nguồn thu khi tạo ví"
+                });
+
+            }
+
+            // Phần tiền còn lại (nếu có) sẽ được ghi nhận là nạp thủ công
+            decimal manualAmount = finalAmount - totalFromSources;
+            if (manualAmount > 0)
+            {
+                await _uow.IncomeHistoryRepository.AddAsync(new DAL.Entities.IncomeHistory
+                {
+                    BudgetId = entity.Id,
+                    IncomeSourceId = null, // null = Tự nhập thủ công
+                    Amount = manualAmount,
+                    ReceivedDate = DateTime.UtcNow.AddHours(7),
+                    Note = "Nạp tiền thủ công"
                 });
             }
 
@@ -148,6 +188,58 @@ namespace BLL.Service
             _uow.BudgetRepository.Update(existingEntity);
             await _uow.Complete();
             return _mapper.Map<BudgetDto>(existingEntity);
+        }
+
+        public async Task<BudgetDto> DepositAsync(string userId, int budgetId, DepositBudgetDto dto)
+        {
+            ArgumentNullException.ThrowIfNull(dto);
+            if (dto.Amount <= 0) throw new ArgumentException("Số tiền nạp phải lớn hơn 0");
+
+            var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
+            if (budget == null || !budget.IsActive)
+                throw new KeyNotFoundException("Ví ngân sách không tồn tại hoặc đã bị khóa.");
+
+            // Kiểm tra quyền
+            if (budget.UserId != userId)
+            {
+                var members = await _uow.BudgetMemberRepository.FindAsync(m => m.BudgetId == budgetId && m.MemberId == userId);
+                var member = members.FirstOrDefault();
+                if (member == null || member.Status != DAL.Enums.InvitationStatus.Accepted || member.Role != DAL.Enums.BudgetRole.Editor)
+                {
+                    throw new Exception("Bạn không có quyền nạp tiền vào ví ngân sách này.");
+                }
+            }
+
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
+            {
+                // Cập nhật số tiền
+                budget.Amount += dto.Amount;
+                budget.CurrentAmount += dto.Amount;
+                _uow.BudgetRepository.Update(budget);
+
+                // Lưu lịch sử
+                var history = new DAL.Entities.IncomeHistory
+                {
+                    BudgetId = budgetId,
+                    IncomeSourceId = dto.IncomeSourceId > 0 ? dto.IncomeSourceId : null,
+                    Amount = dto.Amount,
+                    ReceivedDate = DateTime.UtcNow.AddHours(7),
+                    Note = !string.IsNullOrWhiteSpace(dto.Note) ? dto.Note : (dto.IncomeSourceId > 0 ? "Nạp từ nguồn thu" : "Nạp tiền thủ công")
+                };
+                
+                await _uow.IncomeHistoryRepository.AddAsync(history);
+                
+                await _uow.Complete();
+                await dbTransaction.CommitAsync();
+
+                return _mapper.Map<BudgetDto>(budget);
+            }
+            catch
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<int> DeductMoneyAsync(string userId, decimal amount, int? budgetId = null, bool isExpense = true)
@@ -240,6 +332,47 @@ namespace BLL.Service
             return _mapper.Map<IEnumerable<TransactionDto>>(sortedHistory);
         }
 
+        public async Task<IEnumerable<IncomeHistoryDto>> GetIncomeHistoryAsync(string userId, int budgetId)
+        {
+            var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
+            if (budget == null)
+            {
+                throw new Exception("Ví ngân sách không tồn tại.");
+            }
+
+            bool isOwner = budget.UserId == userId;
+            bool isMember = false;
+
+            if (!isOwner)
+            {
+                var members = await _uow.BudgetMemberRepository.FindAsync(m => m.BudgetId == budgetId && m.MemberId == userId);
+                var member = members.FirstOrDefault();
+                if (member != null && member.Status == DAL.Enums.InvitationStatus.Accepted)
+                {
+                    isMember = true;
+                }
+            }
+
+            if (!isOwner && !isMember)
+            {
+                throw new Exception("Bạn không có quyền xem lịch sử nạp tiền của ví ngân sách này.");
+            }
+
+            var history = await _uow.IncomeHistoryRepository.FindAsync(h => h.BudgetId == budgetId);
+            
+            var result = history.OrderByDescending(h => h.ReceivedDate).Select(h => new IncomeHistoryDto
+            {
+                Id = h.Id,
+                BudgetId = h.BudgetId,
+                IncomeSourceId = h.IncomeSourceId,
+                Amount = h.Amount,
+                ReceivedDate = h.ReceivedDate,
+                Note = h.Note
+            }).ToList();
+
+            return result;
+        }
+
         public async Task ProcessPeriodicRolloverAsync()
         {
             var now = DateTime.UtcNow.AddHours(7);
@@ -308,6 +441,7 @@ namespace BLL.Service
                     // Nếu ví có nguồn thu tự động bơm tiền vào, ta cần reset CurrentAmount về 0 trước, 
                     // nếu không nó sẽ bị cộng dồn với oldBudget.Amount đã gán lúc khởi tạo newBudget.
                     newBudget.CurrentAmount = 0;
+                    newBudget.Amount = 0; // Reset luôn hạn mức để cộng lại từ đầu
 
                     foreach (var item in recurringSources)
                     {
@@ -335,11 +469,12 @@ namespace BLL.Service
                         };
                         await _uow.IncomeHistoryRepository.AddAsync(newHistory);
 
-                        // 3. Bơm tiền thực tế vào CurrentAmount của ví mới
+                        // 3. Bơm tiền thực tế vào CurrentAmount và Hạn mức Amount của ví mới
                         newBudget.CurrentAmount += currentIncomeAmount;
+                        newBudget.Amount += currentIncomeAmount;
                     }
                     
-                    // 4. Update lại cái ví mới vì CurrentAmount đã thay đổi
+                    // 4. Update lại cái ví mới vì CurrentAmount và Amount đã thay đổi
                     _uow.BudgetRepository.Update(newBudget);
                     await _uow.Complete(); // Lưu toàn bộ xuống DB
                 }

@@ -103,6 +103,26 @@ namespace API.Controllers
             }
         }
 
+        [HttpPost("{id}/deposit")]
+        public async Task<ActionResult<BudgetDto>> DepositBudget(int id, [FromBody] DepositBudgetDto dto)
+        {
+            var userId = User.GetUserId();
+            if (userId == null)
+            {
+                return Unauthorized("User ID not found in claims.");
+            }
+            
+            try
+            {
+                var result = await _budgetService.DepositAsync(userId, id, dto);
+                return Ok(result);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpDelete("{id}")]
         public async Task<ActionResult<BudgetDto>> DeleteBudget(int id)
         {
@@ -129,6 +149,26 @@ namespace API.Controllers
 
                 var history = await _budgetService.GetBudgetHistoryAsync(userId, budgetId);
 
+                return Ok(history);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id}/income-history")]
+        public async Task<IActionResult> GetIncomeHistory(int id)
+        {
+            try
+            {
+                var userId = User.GetUserId();
+                if (userId == null)
+                {
+                    return Unauthorized("User ID not found in claims.");
+                }
+
+                var history = await _budgetService.GetIncomeHistoryAsync(userId, id);
                 return Ok(history);
             }
             catch (Exception ex)
