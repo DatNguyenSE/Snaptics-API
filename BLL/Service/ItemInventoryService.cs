@@ -81,6 +81,13 @@ namespace BLL.Service
             item.LastReviewDate = DateTime.UtcNow.AddHours(7);
 
             _uow.ItemInventoryRepository.Update(item);
+
+            var notifications = await _uow.NotificationRepository.FindAsync(n => n.ItemInventoryId == itemInventoryId && n.Type == DAL.Enums.NotificationType.UsageReview);
+            foreach (var notif in notifications)
+            {
+                _uow.NotificationRepository.Delete(notif);
+            }
+
             await _uow.Complete();
             return mapper.Map<ItemInventoryDto>(item);
         }

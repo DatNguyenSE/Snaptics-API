@@ -83,8 +83,12 @@ public class HangfireConfigController : ControllerBase
     public async Task<IActionResult> TriggerItemReviewNow([FromServices] IItemReviewJobService itemReviewService)
     {
         // Truyền 30 ngày giống như config của Hangfire đang dùng
-        await itemReviewService.ScanAndSendNotificationAsync(30);
-        return Ok(new { message = "Item review check executed successfully." });
+        var count = await itemReviewService.TriggerScanAndSendNotificationAsync(30);
+        if (count == 0)
+        {
+            return Ok(new { message = "Thành công nhưng chưa có transaction nào cần danh giá" });
+        }
+        return Ok(new { message = $"Item review check executed successfully. {count} notifications sent." });
     }
 
     // ==========================================

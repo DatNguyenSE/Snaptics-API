@@ -14,7 +14,7 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("api/admin/users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "admin,Admin")]
     public class AdminUserController : ControllerBase
     {
         private readonly UserManager<AppUser> _userManager;

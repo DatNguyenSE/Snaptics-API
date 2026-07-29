@@ -29,11 +29,14 @@ namespace BLL.Service
             return mapper.Map<TransactionDto>(transaction);
         }
 
-        private async Task CheckBudgetPermissionAsync(int budgetId, string userId)
+        private async Task CheckBudgetPermissionAsync(int budgetId, string userId, bool checkActive = true)
         {
             var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
-            if (budget == null || !budget.IsActive)
-                throw new Exception("Ví ngân sách không tồn tại hoặc đã bị khóa.");
+            if (budget == null)
+                throw new Exception("Ví ngân sách không tồn tại.");
+                
+            if (checkActive && !budget.IsActive)
+                throw new Exception("Ví ngân sách đã bị khóa.");
 
             if (budget.UserId == userId) return;
 
@@ -136,22 +139,18 @@ namespace BLL.Service
                 var existingNames = existingCategories.Select(c => c.Name).ToList();
                 var missingNames = categoryNames.Except(existingNames, StringComparer.OrdinalIgnoreCase).ToList();
 
-                // 4. Batch Insert các category mới
+                // 4. Map các category chưa có về "Khác" thay vì tạo mới
                 if (missingNames.Any())
                 {
-                    var newCategories = missingNames.Select(name => new Category
-                    {
-                        Name = name,
-                        UserId = dto.UserId,
-                        IsDefault = false
-                    }).ToList();
-                    await _uow.CategoryRepository.AddRangeAsync(newCategories);
-                    await _uow.Complete(); // Lưu để EF Core sinh ra ID cho các newCategories
+                    var otherCategoryList = await _uow.CategoryRepository.FindAsync(c => 
+                        c.Name == "Khác" && (c.IsDefault || c.UserId == dto.UserId) && !c.IsDeleted);
+                    var bestOtherCategory = otherCategoryList.OrderByDescending(c => c.UserId == dto.UserId).FirstOrDefault();
 
-                    // Nạp thêm ID mới vào Dictionary
-                    foreach (var cat in newCategories)
+                    int otherId = bestOtherCategory?.Id ?? 0;
+
+                    foreach (var name in missingNames)
                     {
-                        categoryDict[cat.Name!] = cat.Id;
+                        categoryDict[name] = otherId;
                     }
                 }
             }
@@ -213,9 +212,9 @@ namespace BLL.Service
                     {
                         UserId = transaction.UserId,
                         TransactionDetailId = detail.Id,
-                        UsageStatus = UsageStatusType.Frequent,
+                        UsageStatus = UsageStatusType.NotEvaluated,
                         IsReviewed = false,
-                        CreatedAt = DateTime.UtcNow.AddHours(7)
+                        CreatedAt = transaction.TransactionDate
                     };
 
                     await _uow.ItemInventoryRepository
@@ -367,7 +366,7 @@ namespace BLL.Service
                 {
                     if (oldBudget != null)
                     {
-                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId);
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId, checkActive: false);
                         decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
                         oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValue;
                         _uow.BudgetRepository.Update(oldBudget);
@@ -439,14 +438,14 @@ namespace BLL.Service
                 {
                     if (oldBudget != null)
                     {
-                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId);
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId, checkActive: false);
                         oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate;
                         _uow.BudgetRepository.Update(oldBudget);
                     }
 
                     if (transactionDto.BudgetId.HasValue)
                     {
-                        await CheckBudgetPermissionAsync(transactionDto.BudgetId.Value, transactionDto.UserId);
+                        await CheckBudgetPermissionAsync(transactionDto.BudgetId.Value, transactionDto.UserId, checkActive: true);
                         var newBudget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId.Value);
                         if (newBudget != null)
                         {
@@ -461,7 +460,7 @@ namespace BLL.Service
                 {
                     if (oldBudget != null)
                     {
-                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId);
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId, checkActive: false);
                         oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate + newRealValue;
                         _uow.BudgetRepository.Update(oldBudget);
                     }

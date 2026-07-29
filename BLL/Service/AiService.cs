@@ -116,11 +116,13 @@ namespace BLL.Service
             promptBuilder.Append("   - BẮT BUỘC cung cấp đơn vị tính (unit) bằng tiếng Việt (ví dụ: 'cái', 'chiếc', 'hộp', 'ly', 'quyển', 'bộ', v.v.).\n\n");
 
             promptBuilder.Append("3. DANH MỤC (category):\n");
-            promptBuilder.Append($"   - DANH MỤC RIÊNG CỦA USER (ưu tiên): [{userCategoryListStr}].\n");
-            promptBuilder.Append($"   - DANH MỤC HỆ THỐNG: [{systemCategoryListStr}].\n");
+            promptBuilder.Append($"   - DANH MỤC RIÊNG CỦA USER (ưu tiên số 1): [{userCategoryListStr}].\n");
+            promptBuilder.Append($"   - DANH MỤC HỆ THỐNG (ưu tiên số 2): [{systemCategoryListStr}].\n");
             promptBuilder.Append("   - Nếu danh mục riêng của USER trùng hoặc tương đương với danh mục hệ thống, BẮT BUỘC ưu tiên danh mục riêng của USER.\n");
-            promptBuilder.Append("   - BẮT BUỘC chọn MỘT tên danh mục chính xác từ hai danh sách trên.\n");
-            promptBuilder.Append("   - Nếu vật thể không phù hợp với danh mục nào, hoặc không thể nhận diện được, trả về 'Khác'. KHÔNG ĐƯỢC tự bịa danh mục ngoài danh sách.\n\n");
+            promptBuilder.Append("   - Hãy ưu tiên lựa chọn một danh mục phù hợp nhất từ danh sách trên nếu có thể.\n");
+            promptBuilder.Append("   - BẮT BUỘC trả về TÊN CHÍNH XÁC của danh mục như trong danh sách.\n");
+            promptBuilder.Append("   - Nếu vật thể KHÔNG THUỘC nhóm ý nghĩa của bất kỳ danh mục nào (ví dụ: đồ chơi không thể xếp vào đồ ăn), hãy mạnh dạn trả về chữ 'Khác'.\n");
+            promptBuilder.Append("   - TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ SÁNG TẠO THÊM TÊN DANH MỤC MỚI.\n\n");
 
             if (estimatePrice)
             {
