@@ -301,23 +301,31 @@ namespace BLL.Service
 
         public async Task<TransactionDto> UpdateAsync(int transactionId, TransactionDto transactionDto)
         {
+            if (transactionDto == null) throw new ArgumentNullException(nameof(transactionDto));
+
             using var dbTransaction = await _uow.BeginTransactionAsync();
             try
             {
                 var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
                 if (transaction == null) throw new Exception("Transaction not found");
 
-                var oldBudget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
-                if (oldBudget == null) throw new Exception("Old Budget not found");
+                Budget? oldBudget = null;
+                if (transaction.BudgetId.HasValue)
+                {
+                    oldBudget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId.Value);
+                }
 
                 if (transactionDto.IsDeleted && !transaction.IsDeleted)
                 {
-                    decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
-                    oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValue;
+                    if (oldBudget != null)
+                    {
+                        decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+                        oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValue;
+                        _uow.BudgetRepository.Update(oldBudget);
+                    }
                     
                     transaction.IsDeleted = true;
                     
-                    _uow.BudgetRepository.Update(oldBudget);
                     _uow.TransactionRepository.Update(transaction);
                     await _uow.Complete();
                     await dbTransaction.CommitAsync();
@@ -380,21 +388,31 @@ namespace BLL.Service
 
                 if (transactionDto.BudgetId != transaction.BudgetId)
                 {
-                    oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate;
-                    _uow.BudgetRepository.Update(oldBudget);
+                    if (oldBudget != null)
+                    {
+                        oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate;
+                        _uow.BudgetRepository.Update(oldBudget);
+                    }
 
-                    var newBudget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId);
-                    if (newBudget == null) throw new Exception("New Budget not found");
-
-                    newBudget.CurrentAmount = newBudget.CurrentAmount + newRealValue;
-                    _uow.BudgetRepository.Update(newBudget);
+                    if (transactionDto.BudgetId.HasValue)
+                    {
+                        var newBudget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId.Value);
+                        if (newBudget != null)
+                        {
+                            newBudget.CurrentAmount = newBudget.CurrentAmount + newRealValue;
+                            _uow.BudgetRepository.Update(newBudget);
+                        }
+                    }
 
                     transaction.BudgetId = transactionDto.BudgetId;
                 }
                 else
                 {
-                    oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate + newRealValue;
-                    _uow.BudgetRepository.Update(oldBudget);
+                    if (oldBudget != null)
+                    {
+                        oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate + newRealValue;
+                        _uow.BudgetRepository.Update(oldBudget);
+                    }
                 }
 
                 _uow.TransactionRepository.Update(transaction);
