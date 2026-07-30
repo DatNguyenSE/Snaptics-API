@@ -73,6 +73,21 @@ namespace BLL.Service
             return ms.ToArray();
         }
 
+        public async Task DeleteFileAsync(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+
+            var region = string.IsNullOrEmpty(_aws.Region) ? "ap-southeast-1" : _aws.Region;
+            var client = new AmazonS3Client(_aws.AccessKey, _aws.SecretKey, Amazon.RegionEndpoint.GetBySystemName(region));
+            var bucketName = string.IsNullOrEmpty(_aws.BucketName) ? "s3-bucket-snaptics" : _aws.BucketName;
+            var deleteRequest = new DeleteObjectRequest
+            {
+                BucketName = bucketName,
+                Key = key
+            };
+            await client.DeleteObjectAsync(deleteRequest);
+        }
+
         public async Task<string> MoveObjectAsync(string sourceKey, string destinationFolder = "bills")
         {
             if (string.IsNullOrEmpty(sourceKey)) return null;
