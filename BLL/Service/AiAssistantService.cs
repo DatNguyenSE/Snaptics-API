@@ -171,13 +171,31 @@ namespace BLL.Service
 
                     var transactions = await _uow.TransactionRepository
                         .GetCompletedTransactionsWithDetailsAsync(userId, startDate, endDate);
-                    
-                    var totalSpent = transactions.Sum(t => t.TotalAmount);
-                    var count = transactions.Count();
 
-                    string reply = count == 0 
-                        ? $"🔍 Trống không! Trong {timeFriendly}, bạn chưa có giao dịch nào cả. Hãy chi tiêu và ghi chép lại nhé! 📝"
-                        : $"📊 Báo cáo tài chính đây ạ: Trong {timeFriendly}, bạn đã thực hiện **{count}** giao dịch với tổng chi tiêu là **{totalSpent:N0}đ**. Hãy tiếp tục chi tiêu hợp lý nha! 💡";
+                    // Tách riêng thu nhập và chi tiêu (không gộp chung như trước)
+                    var totalIncome = transactions.Where(t => !t.IsExpense).Sum(t => t.TotalAmount);
+                    var totalExpense = transactions.Where(t => t.IsExpense).Sum(t => t.TotalAmount);
+                    var totalTransactions = transactions.Count();
+                    var balance = totalIncome - totalExpense;
+
+                    string reply;
+
+                    if (totalTransactions == 0)
+                    {
+                        reply = $"🔍 Trống không! Trong {timeFriendly}, bạn chưa có giao dịch nào cả. Hãy chi tiêu và ghi chép lại nhé! 📝";
+                    }
+                    else if (totalExpense == 0)
+                    {
+                        reply = $"🎉 Báo cáo tài chính đây ạ: Trong {timeFriendly}, bạn có **{totalTransactions}** giao dịch với tổng **thu nhập {totalIncome:N0}đ** và **chưa có khoản chi tiêu nào**. Số dư còn lại là **{balance:N0}đ**. Giữ phong độ này nha! 💪";
+                    }
+                    else if (totalIncome == 0)
+                    {
+                        reply = $"📊 Báo cáo tài chính đây ạ: Trong {timeFriendly}, bạn đã **chi tiêu {totalExpense:N0}đ** qua **{totalTransactions}** giao dịch và **chưa có khoản thu nhập nào**. Hãy cố gắng cân đối lại chi tiêu nha! 💡";
+                    }
+                    else
+                    {
+                        reply = $"📊 Báo cáo tài chính đây ạ: Trong {timeFriendly}, bạn đã **chi tiêu {totalExpense:N0}đ** và có **thu nhập {totalIncome:N0}đ** qua **{totalTransactions}** giao dịch. Số dư còn lại là **{balance:N0}đ**. Hãy tiếp tục chi tiêu hợp lý nha! 💡";
+                    }
 
                     return new AskAiResponseDto { Reply = reply };
                 }
@@ -243,7 +261,7 @@ namespace BLL.Service
                             new
                             {
                                 name = "query_financial",
-                                description = "Truy vấn tổng chi tiêu theo thời gian.",
+                                description = "Truy vấn chi tiêu và thu nhập theo thời gian (tháng này, tháng trước, năm nay).",
                                 parameters = new
                                 {
                                     type = "OBJECT",
