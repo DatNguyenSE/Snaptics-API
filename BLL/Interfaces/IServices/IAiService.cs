@@ -14,5 +14,10 @@ namespace BLL.Interfaces.IServices
         /// Gửi ảnh hóa đơn/bill lên Azure Document Intelligence (prebuilt-receipt).
         /// </summary>
         Task<BillReadResultDto> ReadBillAsync(byte[] imageBytes, string contentType);
+        
+        /// <summary>
+        /// Gửi text query lên AI và nhận về text.
+        /// </summary>
+        Task<string> GenerateTextAsync(string systemPrompt, string userMessage);
     }
 }

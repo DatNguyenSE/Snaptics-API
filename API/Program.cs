@@ -1,4 +1,8 @@
     using System.Text;
+using Amazon;
+using Amazon.CloudWatchLogs;
+using Serilog;
+using Serilog.Sinks.AwsCloudWatch;
 using Amazon.Budgets;
 using API.Mappings;
 using API.Middlewares;
@@ -22,6 +26,7 @@ using Microsoft.OpenApi;
 using Amazon.SimpleNotificationService;
 using BLL.Interfaces;
 
+Serilog.Debugging.SelfLog.Enable(Console.Error);
 var builder = WebApplication.CreateBuilder(args);
 
 // Kết nối tới AWS Parameter Store để lấy cấu hình bí mật (Bỏ qua nếu lỗi ở Local để tránh crash)
@@ -31,9 +36,32 @@ try {
     Console.WriteLine($"Cảnh báo: Không thể tải cấu hình từ AWS Parameter Store. Chi tiết: {ex.Message}");
 }
 
-// Add services to the container.
+var accessKey = builder.Configuration.GetSection("AWS_CloudWatch")["AccessKey"];
+var secretKey = builder.Configuration.GetSection("AWS_CloudWatch")["SecretKey"];
+var regionString = builder.Configuration.GetSection("AWS_CloudWatch")["Region"] ?? "ap-southeast-1";
 
-builder.Services.AddControllers();
+var awsCredentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
+var region = RegionEndpoint.GetBySystemName(regionString);
+var cloudWatchClient = new AmazonCloudWatchLogsClient(awsCredentials, region);
+
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.AmazonCloudWatch(
+        logGroup: "/Snaptic/BackendLogs",
+        logStreamPrefix: "API-",
+        cloudWatchClient: cloudWatchClient)
+    .CreateLogger();
+
+try
+{
+    Log.Information("Đang khởi động hệ thống Snaptic");
+    builder.Host.UseSerilog();
+
+    // Add services to the container.
+
+    builder.Services.AddControllers();
 
 // register AutoMapper 
 builder.Services.AddAutoMapper(cfg => 
@@ -225,4 +253,13 @@ app.UseWebSockets();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 
-app.Run();
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Error occurred while starting the application.");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

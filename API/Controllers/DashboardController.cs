@@ -13,7 +13,7 @@ namespace API.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class DashboardController : ControllerBase
+    public class DashboardController : BaseController<DashboardController>
     {
         private readonly IDashboardService _dashboardService;
 
@@ -29,8 +29,10 @@ namespace API.Controllers
             [FromQuery] int? month = null, 
             [FromQuery] int? year = null)
         {
-
-            var userId = User.GetUserId();
+            try
+            {
+                var userId = User.GetUserId();
+                Logger.LogInformation("Fetching dashboard summary for user {UserId}", userId);
         
             DateTime fromDate;
             DateTime toDate;
@@ -61,6 +63,12 @@ namespace API.Controllers
 
             var result = await _dashboardService.GetDashboardSummaryAsync(userId, fromDate, toDate);
             return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "An error occurred while fetching dashboard summary.");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
 
         [HttpGet("category-summary")]
@@ -70,7 +78,10 @@ namespace API.Controllers
             [FromQuery] int? month = null, 
             [FromQuery] int? year = null)
         {
-            var userId = User.GetUserId();
+            try
+            {
+                var userId = User.GetUserId();
+                Logger.LogInformation("Fetching category summary for user {UserId}", userId);
         
             DateTime fromDate;
             DateTime toDate;
@@ -100,6 +111,12 @@ namespace API.Controllers
 
             var result = await _dashboardService.GetCategorySummaryAsync(userId, fromDate, toDate);
             return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "An error occurred while fetching category summary.");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
 
         [HttpGet("trend-summary")]
@@ -109,7 +126,10 @@ namespace API.Controllers
             [FromQuery] int? month = null, 
             [FromQuery] int? year = null)
         {
-            var userId = User.GetUserId();
+            try
+            {
+                var userId = User.GetUserId();
+                Logger.LogInformation("Fetching trend summary for user {UserId}", userId);
         
             DateTime fromDate;
             DateTime toDate;
@@ -139,14 +159,29 @@ namespace API.Controllers
 
             var result = await _dashboardService.GetTrendSummaryAsync(userId, fromDate, toDate);
             return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "An error occurred while fetching trend summary.");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
 
         [HttpGet("spending-comparison")]
         public async Task<IActionResult> GetSpendingComparison()
         {
-            var userId = User.GetUserId();
-            var result = await _dashboardService.GetSpendingComparisonAsync(userId);
-            return Ok(result);
+            try
+            {
+                var userId = User.GetUserId();
+                Logger.LogInformation("Fetching spending comparison for user {UserId}", userId);
+                var result = await _dashboardService.GetSpendingComparisonAsync(userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "An error occurred while fetching spending comparison.");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
     }
 }
