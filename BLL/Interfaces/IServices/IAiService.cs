@@ -17,5 +17,10 @@ namespace BLL.Interfaces.IServices
         /// Client tự quyết định save vào TransactionDetail.
         /// </summary>
         Task<BillReadResultDto> ReadBillAsync(IFormFile billImage);
+        
+        /// <summary>
+        /// Gửi text query lên AI và nhận về text.
+        /// </summary>
+        Task<string> GenerateTextAsync(string systemPrompt, string userMessage);
     }
 }

@@ -1,4 +1,4 @@
-﻿using DAL.Entities;
+using DAL.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -16,7 +16,11 @@ namespace DAL.Repositories
         }
         public async Task<IEnumerable<ItemInventory>> GetByUserIdAsync(string userId)
         {
-            return await _dbSet.Where(x => x.UserId == userId).ToListAsync();
+            return await _dbSet
+                .Include(x => x.TransactionDetail)
+                .ThenInclude(td => td.Category)
+                .Where(x => x.UserId == userId)
+                .ToListAsync();
         }
         public async Task<IEnumerable<ItemInventory>>GetItemsNeedReviewWithDetailAsync(DateTime thresholdDate)
         {

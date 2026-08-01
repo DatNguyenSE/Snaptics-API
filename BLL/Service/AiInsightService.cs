@@ -1,11 +1,11 @@
-﻿using BLL.Dtos;
+using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using DAL.Enums;
 using DAL.IRepositories;
 
 namespace BLL.Service
 {
-    public class AiInsightService(IUnitOfWork _uow, INotificationService _notificationService, ISnsService _snsService) : IAiInsightService
+    public class AiInsightService(IUnitOfWork _uow, INotificationService _notificationService, ISnsService _snsService, IAiService _aiService) : IAiInsightService
     {
         public async Task GenerateInsightsAsync(string userId)
         {
@@ -14,6 +14,8 @@ namespace BLL.Service
             await CheckBudgetWarning(userId);
 
             await CheckCategoryInsight(userId);
+
+            await CheckInventoryInsight(userId);
         }
 
         private async Task CheckSpendingSpike(string userId)
@@ -226,6 +228,55 @@ namespace BLL.Service
                     Type = NotificationType.Other,
                     CreatedAt = DateTime.UtcNow
                 });
+        }
+
+        private async Task CheckInventoryInsight(string userId)
+        {
+            var items = await _uow.ItemInventoryRepository.GetByUserIdAsync(userId);
+            if (items == null || !items.Any()) return;
+
+            // Chặn spam notification
+            if (await HasNotificationTodayAsync(userId, NotificationType.Other, "đồ đạc")) return;
+
+            var sb = new System.Text.StringBuilder();
+            foreach (var item in items.Where(x => x.IsReviewed))
+            {
+                sb.AppendLine($"- {item.TransactionDetail?.ItemName} (Giá: {item.TransactionDetail?.Price:N0}đ, Mức độ sử dụng: {item.UsageStatus})");
+            }
+
+            if (sb.Length == 0) return; // Chưa đánh giá cái nào
+
+            var systemPrompt = @"Bạn là trợ lý AI phân tích đồ đạc của Snaptics. 
+Dưới đây là danh sách đồ đạc của người dùng:
+" + sb.ToString() + @"
+Nhiệm vụ: 
+1. Tìm những đồ 'Frequent' (Dùng thường xuyên), hãy gợi ý họ mua lại hoặc canh săn sale.
+2. Tìm những đồ 'Unused' (Không dùng nữa) hoặc 'Seldom' (Ít dùng), tính tổng lãng phí (tiền) và khuyên họ mang đi thanh lý.
+Viết RA DUY NHẤT MỘT CÂU THÔNG BÁO NGẮN GỌN (dưới 150 ký tự) ghép chung 2 ý trên (nếu có). 
+Lưu ý: Bắt buộc trong câu phải có từ 'đồ đạc' để hệ thống nhận diện (VD: Đồ đạc của bạn...).
+Nếu không có gì đáng nhắc, hoặc không tính toán được lãng phí đáng kể, hãy trả về chữ 'EMPTY'.";
+
+            try
+            {
+                var message = await _aiService.GenerateTextAsync(systemPrompt, "Hãy viết thông báo");
+                message = message?.Trim();
+
+                if (!string.IsNullOrEmpty(message) && message != "EMPTY" && !message.StartsWith("EMPTY"))
+                {
+                    await _notificationService.CreateAsync(
+                        new NotificationDto
+                        {
+                            UserId = userId,
+                            Message = message,
+                            Type = NotificationType.Other,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                }
+            }
+            catch
+            {
+                // Ignore AI errors in background
+            }
         }
 
         private async Task<bool> HasNotificationTodayAsync(string userId, NotificationType type, string keyword)
