@@ -62,7 +62,7 @@ namespace BLL.Service
         public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true)
         {
             var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
-            var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
+            var apiKey = _config["AiModel:ApiKey"]?.Trim() ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
             var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
 
             // 1. Kiểm tra tính hợp lệ của file ảnh đầu vào (không rỗng)
