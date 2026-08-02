@@ -111,7 +111,19 @@ namespace API.BackgroundServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to process AI task for User: {aiTask.UserId}");
-                await _hubContext.Clients.User(aiTask.UserId).SendAsync("ReceiveAiError", "Lỗi xử lý AI: " + ex.Message, cancellationToken: stoppingToken);
+                try 
+                {
+                    var errorMessage = ex.Message;
+                    if (errorMessage.Length > 500) 
+                    {
+                        errorMessage = errorMessage.Substring(0, 500) + "...";
+                    }
+                    await _hubContext.Clients.User(aiTask.UserId).SendAsync("ReceiveAiError", "Lỗi xử lý AI: " + errorMessage, cancellationToken: stoppingToken);
+                }
+                catch (Exception sendEx)
+                {
+                    _logger.LogError(sendEx, "Failed to send ReceiveAiError via SignalR.");
+                }
             }
         }
     }

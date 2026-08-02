@@ -162,7 +162,6 @@ namespace BLL.Service
                         }
                     }
                 },
-                response_format = new { type = "json_object" }, // ÉP KIỂU JSON
                 temperature = 0.1
             };
 
