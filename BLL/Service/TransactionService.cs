@@ -13,7 +13,8 @@ namespace BLL.Service
         IMapper mapper,
         IItemDictionaryService _itemDictionaryService,
         IBudgetService _budgetService,
-        ICategoryService _categoryService
+        ICategoryService _categoryService,
+        IS3Service _s3Service
     ) : ITransactionService
     {
         public async Task<IEnumerable<TransactionDto>
@@ -487,6 +488,8 @@ namespace BLL.Service
                 var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
                 if (transaction == null) throw new Exception("Transaction not found");
 
+                var imageKey = transaction.ImageKey;
+
                 var budget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
                 if (budget != null)
                 {
@@ -499,6 +502,19 @@ namespace BLL.Service
                 _uow.TransactionRepository.Delete(transaction);
                 await _uow.Complete();
                 await dbTransaction.CommitAsync();
+
+                // Xóa ảnh trên S3 sau khi đã xóa transaction thành công
+                if (!string.IsNullOrEmpty(imageKey))
+                {
+                    try
+                    {
+                        await _s3Service.DeleteFileAsync(imageKey);
+                    }
+                    catch
+                    {
+                        // Không block luồng xóa transaction nếu xóa ảnh thất bại
+                    }
+                }
 
                 return mapper.Map<TransactionDto>(transaction);
             }
