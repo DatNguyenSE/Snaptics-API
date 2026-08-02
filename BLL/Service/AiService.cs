@@ -61,9 +61,10 @@ namespace BLL.Service
         // Feature 1: Phân tích ảnh bằng AI (ChatGPT / gpt-4o-mini)
         public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true)
         {
-            var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
-            var apiKey = _config["AiModel:ApiKey"]?.Trim() ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
-            var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
+            var apiKey = _config["AiSettings:GeminiApiKey"]?.Trim() ?? throw new InvalidOperationException("Thiếu GeminiApiKey");
+            var modelName = _config["AiSettings:GeminiModel"] ?? "gemini-1.5-flash"; // gemini-flash-lite does not always support images well, safer to use gemini-1.5-flash if needed, but let's stick to config
+            var apiVersion = _config["AiSettings:GeminiApiVersion"] ?? "v1beta";
+            var endpoint = $"https://generativelanguage.googleapis.com/{apiVersion}/models/{modelName}:generateContent?key={apiKey}";
 
             // 1. Kiểm tra tính hợp lệ của file ảnh đầu vào (không rỗng)
             if (imageBytes == null || imageBytes.Length == 0)
@@ -141,32 +142,35 @@ namespace BLL.Service
 
             var dynamicPrompt = promptBuilder.ToString();
 
-            // 4. Xây dựng Payload theo chuẩn OpenAI API.
-            // Payload bao gồm Prompt và ảnh dạng Base64.
+            // 4. Xây dựng Payload theo chuẩn Gemini API.
             var payload = new
             {
-                model = modelName,
-                messages = new[]
+                contents = new[]
                 {
                     new
                     {
-                        role = "user",
-                        content = new object[]
+                        parts = new object[]
                         {
-                            new { type = "text", text = dynamicPrompt },
-                            new 
-                            { 
-                                type = "image_url", 
-                                image_url = new { url = $"data:{contentType};base64,{base64Image}" } 
+                            new { text = dynamicPrompt },
+                            new
+                            {
+                                inline_data = new
+                                {
+                                    mime_type = contentType,
+                                    data = base64Image
+                                }
                             }
                         }
                     }
                 },
-                temperature = 0.1
+                generationConfig = new
+                {
+                    temperature = 0.1,
+                    responseMimeType = "application/json"
+                }
             };
 
             var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            request.Headers.Add("Authorization", $"Bearer {apiKey}");
             request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
             // 4. Thực hiện gửi HTTP POST request gọi API của LLM Provider
@@ -176,12 +180,12 @@ namespace BLL.Service
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception($"Lỗi từ AI Provider: {response.StatusCode} - {responseString}");
+                throw new Exception($"Lỗi từ Gemini Provider: {response.StatusCode} - {responseString}");
             }
 
-            // 5. Bóc tách lấy nội dung JSON từ cục response của AI
+            // 5. Bóc tách lấy nội dung JSON từ cục response của Gemini
             var jsonNode = JsonNode.Parse(responseString);
-            var aiTextResponse = jsonNode?["choices"]?[0]?["message"]?["content"]?.ToString();
+            var aiTextResponse = jsonNode?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
 
             if (string.IsNullOrEmpty(aiTextResponse))
             {
@@ -559,9 +563,10 @@ namespace BLL.Service
         /// </summary>
         private async Task<List<LlmCategoryResult>?> CallLlmToCategorizeBatchAsync(List<BillItemDto> unresolvedItems)
         {
-            var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
-            var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
-            var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
+            var apiKey = _config["AiSettings:GeminiApiKey"]?.Trim() ?? throw new InvalidOperationException("Thiếu GeminiApiKey");
+            var modelName = _config["AiSettings:GeminiModel"] ?? "gemini-1.5-flash";
+            var apiVersion = _config["AiSettings:GeminiApiVersion"] ?? "v1beta";
+            var endpoint = $"https://generativelanguage.googleapis.com/{apiVersion}/models/{modelName}:generateContent?key={apiKey}";
 
             // Chỉ gửi tên món, không cần Price/Quantity để giảm token
             var itemNamesJson = JsonSerializer.Serialize(unresolvedItems.Select(x => x.ItemName).ToList());
@@ -596,16 +601,26 @@ namespace BLL.Service
 
             var payload = new
             {
-                model = modelName,
-                messages = new[] { new { role = "user", content = prompt } },
-                response_format = new { type = "json_object" },
-                temperature = 0.0
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new object[]
+                        {
+                            new { text = prompt }
+                        }
+                    }
+                },
+                generationConfig = new
+                {
+                    temperature = 0.0,
+                    responseMimeType = "application/json"
+                }
             };
 
             try
             {
                 var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-                request.Headers.Add("Authorization", $"Bearer {apiKey}");
                 request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
                 var client = _httpClientFactory.CreateClient();
@@ -615,7 +630,7 @@ namespace BLL.Service
 
                 var responseString = await response.Content.ReadAsStringAsync();
                 var jsonNode = JsonNode.Parse(responseString);
-                var aiTextResponse = jsonNode?["choices"]?[0]?["message"]?["content"]?.ToString();
+                var aiTextResponse = jsonNode?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
 
                 if (string.IsNullOrWhiteSpace(aiTextResponse)) return null;
 
@@ -711,24 +726,31 @@ namespace BLL.Service
         // Feature 3: Generate Text Only (For Insights)
         public async Task<string> GenerateTextAsync(string systemPrompt, string userMessage)
         {
-            var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
-            var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
-            var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
+            var apiKey = _config["AiSettings:GeminiApiKey"]?.Trim() ?? throw new InvalidOperationException("Thiếu GeminiApiKey");
+            var modelName = _config["AiSettings:GeminiModel"] ?? "gemini-1.5-flash";
+            var apiVersion = _config["AiSettings:GeminiApiVersion"] ?? "v1beta";
+            var endpoint = $"https://generativelanguage.googleapis.com/{apiVersion}/models/{modelName}:generateContent?key={apiKey}";
 
             var payload = new
             {
-                model = modelName,
-                messages = new object[]
+                contents = new[]
                 {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = userMessage }
+                    new
+                    {
+                        parts = new object[]
+                        {
+                            new { text = systemPrompt + "\n\n" + userMessage }
+                        }
+                    }
                 },
-                max_tokens = 200,
-                temperature = 0.5
+                generationConfig = new
+                {
+                    maxOutputTokens = 200,
+                    temperature = 0.5
+                }
             };
 
             var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
             request.Content = new StringContent(
                 JsonSerializer.Serialize(payload),
                 Encoding.UTF8,
@@ -740,11 +762,11 @@ namespace BLL.Service
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception($"AI Text Gen Error: {response.StatusCode} - {responseString}");
+                throw new Exception($"Gemini Text Gen Error: {response.StatusCode} - {responseString}");
             }
 
             var jsonNode = JsonNode.Parse(responseString);
-            var message = jsonNode?["choices"]?[0]?["message"]?["content"]?.ToString();
+            var message = jsonNode?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
             
             return message ?? string.Empty;
         }
