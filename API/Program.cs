@@ -31,6 +31,10 @@ try {
     Console.WriteLine($"Cảnh báo: Không thể tải cấu hình từ AWS Parameter Store. Chi tiết: {ex.Message}");
 }
 
+var accessKey = builder.Configuration.GetSection("AWS_CloudWatch")["AccessKey"];
+var secretKey = builder.Configuration.GetSection("AWS_CloudWatch")["SecretKey"];
+var regionString = builder.Configuration.GetSection("AWS_CloudWatch")["Region"] ?? "ap-southeast-1";
+
 // Add services to the container.
 
 builder.Services.AddControllers();
