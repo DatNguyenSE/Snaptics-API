@@ -22,7 +22,19 @@ namespace BLL.Service
             string userId,
             AskAiRequestDto request)
         {
-            var systemPrompt = PromptBuilder.Build();
+            var items = await _uow.ItemInventoryRepository.GetByUserIdAsync(userId);
+            var inventoryContext = "";
+            if (items != null && items.Any())
+            {
+                var sb = new StringBuilder();
+                foreach(var item in items)
+                {
+                    sb.AppendLine($"- Tên món đồ: {item.TransactionDetail?.ItemName}, Danh mục: {item.TransactionDetail?.Category?.Name}, Mức độ sử dụng: {item.UsageStatus.ToString()}");
+                }
+                inventoryContext = sb.ToString();
+            }
+
+            var systemPrompt = PromptBuilder.Build(inventoryContext);
             var responseJson = await CallGeminiAsync(systemPrompt, request.Message);
             var jsonNode = JsonNode.Parse(responseJson);
             

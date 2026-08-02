@@ -708,5 +708,46 @@ namespace BLL.Service
         }
 
         
+        // ═══════════════════════════════════════════════════════
+        // Feature 3: Generate Text Only (For Insights)
+        public async Task<string> GenerateTextAsync(string systemPrompt, string userMessage)
+        {
+            var endpoint = _config["AiModel:Endpoint"] ?? "https://models.inference.ai.azure.com/chat/completions";
+            var apiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
+            var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
+
+            var payload = new
+            {
+                model = modelName,
+                messages = new object[]
+                {
+                    new { role = "system", content = systemPrompt },
+                    new { role = "user", content = userMessage }
+                },
+                max_tokens = 200,
+                temperature = 0.5
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/json");
+
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"AI Text Gen Error: {response.StatusCode} - {responseString}");
+            }
+
+            var jsonNode = JsonNode.Parse(responseString);
+            var message = jsonNode?["choices"]?[0]?["message"]?["content"]?.ToString();
+            
+            return message ?? string.Empty;
+        }
     }
 }

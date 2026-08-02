@@ -5,7 +5,7 @@ namespace BLL.AI
 {
     public static class PromptBuilder
     {
-        public static string Build()
+        public static string Build(string inventoryContext = "")
         {
             var prompt = new StringBuilder();
             var today = DateTime.UtcNow.AddHours(7); // Vietnam Time
@@ -36,6 +36,16 @@ namespace BLL.AI
             prompt.AppendLine("  + Khi người dùng nói 'được thưởng', 'được cho tiền', 'nhận quà', 'mẹ thưởng', 'bố cho', 'sếp thưởng' -> category = 'Quà tặng & Thưởng'");
             prompt.AppendLine("  + Khi không chắc chắn -> category = 'Khác'");
             
+            if (!string.IsNullOrEmpty(inventoryContext))
+            {
+                prompt.AppendLine("--- DỮ LIỆU ĐỒ ĐẠC CỦA NGƯỜI DÙNG ---");
+                prompt.AppendLine(inventoryContext);
+                prompt.AppendLine("--- KẾT THÚC DỮ LIỆU ---");
+                prompt.AppendLine("LƯU Ý QUAN TRỌNG VỀ TƯ VẤN:");
+                prompt.AppendLine("- Nếu user định MUA THÊM món đồ có tên/loại giống với món đồ đang ở trạng thái 'Unused' (Không dùng nữa) hoặc 'Seldom' (Ít dùng), HÃY CẢNH BÁO HỌ VÀ KHUYÊN KHÔNG NÊN MUA để tránh lãng phí (Dựa vào dữ liệu đồ đạc ở trên).");
+                prompt.AppendLine("- Nếu user hỏi xin lời khuyên mua sắm, hãy gợi ý họ săn sale hoặc mua lại các món đồ ở trạng thái 'Frequent' (Dùng thường xuyên).");
+            }
+
             prompt.AppendLine("Khi người dùng hỏi số liệu (ví dụ: 'tháng này tiêu bao nhiêu'), hãy sử dụng tool query_financial.");
             prompt.AppendLine("Nếu câu hỏi không liên quan đến tài chính, bạn hãy giao tiếp thân thiện như một chatbot bình thường.");
 
