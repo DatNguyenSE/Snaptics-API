@@ -17,7 +17,12 @@ namespace API.Mappings
             CreateMap<Category, CategoryDto>().ReverseMap(); 
             CreateMap<Transaction, TransactionDto>().ReverseMap();
             CreateMap<TransactionDetail, TransactionDetailDto>().ReverseMap();
-            CreateMap<ItemInventory, ItemInventoryDto>().ReverseMap();
+            CreateMap<ItemInventory, ItemInventoryDto>()
+                .ForMember(dest => dest.ItemName, opt => opt.MapFrom(src => src.TransactionDetail != null ? src.TransactionDetail.ItemName : null))
+                .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.TransactionDetail != null ? src.TransactionDetail.Price * src.TransactionDetail.Quantity : (decimal?)null))
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => (src.TransactionDetail != null && src.TransactionDetail.Category != null) ? src.TransactionDetail.Category.Name : null))
+                .ForMember(dest => dest.PurchaseDate, opt => opt.MapFrom(src => (src.TransactionDetail != null && src.TransactionDetail.Transaction != null) ? src.TransactionDetail.Transaction.TransactionDate : (DateTime?)null))
+                .ReverseMap();
             CreateMap<Budget, BudgetDto>().ReverseMap();
             CreateMap<Notification, NotificationDto>().ReverseMap();
             CreateMap<ItemDictionary, ItemDictionaryDto>().ReverseMap();

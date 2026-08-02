@@ -36,7 +36,7 @@ namespace API.Controllers
         
             DateTime fromDate;
             DateTime toDate;
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow.AddHours(7);
 
             switch (filterType.ToLower())
             {
@@ -85,7 +85,7 @@ namespace API.Controllers
         
             DateTime fromDate;
             DateTime toDate;
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow.AddHours(7);
 
             switch (filterType.ToLower())
             {
@@ -133,7 +133,7 @@ namespace API.Controllers
         
             DateTime fromDate;
             DateTime toDate;
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow.AddHours(7);
 
             switch (filterType.ToLower())
             {
@@ -182,6 +182,20 @@ namespace API.Controllers
                 Logger.LogError(ex, "An error occurred while fetching spending comparison.");
                 return StatusCode(500, "An error occurred while processing your request.");
             }
+        }
+
+        [HttpGet("active-hours")]
+        public async Task<IActionResult> GetActiveHours(
+            [FromQuery] int? month = null,
+            [FromQuery] int? year = null)
+        {
+            var userId = User.GetUserId();
+            var now = DateTime.UtcNow.AddHours(7);
+            var fromDate = new DateTime(year ?? now.Year, month ?? now.Month, 1);
+            var toDate = fromDate.AddMonths(1).AddTicks(-1);
+
+            var result = await _dashboardService.GetActiveHoursAsync(userId, fromDate, toDate);
+            return Ok(result);
         }
     }
 }

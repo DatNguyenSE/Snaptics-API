@@ -36,25 +36,29 @@ namespace BLL.Service
             // 2. Tính thẻ Tổng quan từ Transaction
             response.TotalIncome = transactions
                 .Where(t => !t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .Sum(td => td.Price * td.Quantity);
+                .Sum(t => t.TotalAmount);
 
             response.TotalExpense = transactions
                 .Where(t => t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .Sum(td => td.Price * td.Quantity);
+                .Sum(t => t.TotalAmount);
 
             response.Balance = response.TotalIncome - response.TotalExpense;
 
             // 3. Biểu đồ tròn (Cơ cấu chi tiêu - chỉ tính Expense)
             response.PieChart = transactions
                 .Where(t => t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .GroupBy(td => td.Category?.Name ?? "Unknown")
+                .SelectMany(t => t.TransactionDetails.Select(td => new
+                {
+                    CategoryName = td.Category?.Name ?? "Unknown",
+                    ActualAmount = (t.IsAiEstimated && t.TransactionDetails.Count == 1 && td.Price == t.TotalAmount && td.Quantity > 1)
+                        ? t.TotalAmount
+                        : td.Price * td.Quantity
+                }))
+                .GroupBy(x => x.CategoryName)
                 .Select(g => new PieChartDto
                 {
                     CategoryName = g.Key,
-                    TotalAmount = g.Sum(td => td.Price * td.Quantity)
+                    TotalAmount = g.Sum(x => x.ActualAmount)
                 })
                 .OrderByDescending(x => x.TotalAmount)
                 .ToList();
@@ -95,12 +99,18 @@ namespace BLL.Service
 
             var groupedCategories = transactions
                 .Where(t => t.IsExpense)
-                .SelectMany(t => t.TransactionDetails)
-                .GroupBy(td => td.Category?.Name ?? "Khác")
+                .SelectMany(t => t.TransactionDetails.Select(td => new
+                {
+                    CategoryName = td.Category?.Name ?? "Khác",
+                    ActualAmount = (t.IsAiEstimated && t.TransactionDetails.Count == 1 && td.Price == t.TotalAmount && td.Quantity > 1)
+                        ? t.TotalAmount
+                        : td.Price * td.Quantity
+                }))
+                .GroupBy(x => x.CategoryName)
                 .Select(g => new CategorySummaryItemDto
                 {
                     Name = g.Key,
-                    TotalAmount = g.Sum(td => td.Price * td.Quantity)
+                    TotalAmount = g.Sum(x => x.ActualAmount)
                 })
                 .OrderByDescending(x => x.TotalAmount)
                 .ToList();
@@ -151,7 +161,7 @@ namespace BLL.Service
 
         public async Task<SpendingComparisonDto> GetSpendingComparisonAsync(string userId)
         {
-            var now = DateTime.Now;
+            var now = DateTime.UtcNow.AddHours(7);
             
             // Week calculations
             int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
@@ -180,8 +190,7 @@ namespace BLL.Service
             {
                 return transactions
                     .Where(t => t.TransactionDate >= start && t.TransactionDate < endExclusive)
-                    .SelectMany(t => t.TransactionDetails)
-                    .Sum(td => td.Price * td.Quantity);
+                    .Sum(t => t.TotalAmount);
             }
 
             var currentWeekAmount = GetAmount(currentWeekStart, currentWeekStart.AddDays(7));
@@ -220,6 +229,36 @@ namespace BLL.Service
                 Month = CreateData(currentMonthAmount, previousMonthAmount),
                 Year = CreateData(currentYearAmount, previousYearAmount)
             };
+        }
+
+        public async Task<List<ActiveHourDto>> GetActiveHoursAsync(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var startDate = fromDate.Date;
+            var endDateExclusive = toDate.Date.AddDays(1);
+
+            var transactions = await _context.Transactions
+                .AsNoTracking()
+                .Where(t => t.UserId == userId
+                    && !t.IsDeleted
+                    && t.Status == TransactionStatusType.Completed
+                    && t.CreatedAt >= startDate
+                    && t.CreatedAt < endDateExclusive)
+                .Select(t => new { t.CreatedAt, t.TotalAmount })
+                .ToListAsync();
+
+            return transactions
+                .GroupBy(t => t.CreatedAt.Hour)
+                .Select(group => new ActiveHourDto
+                {
+                    Hour = group.Key,
+                    Label = $"{group.Key:00}:00 - {(group.Key + 1) % 24:00}:00",
+                    TransactionCount = group.Count(),
+                    TotalAmount = group.Sum(t => t.TotalAmount),
+                })
+                .OrderByDescending(item => item.TransactionCount)
+                .ThenByDescending(item => item.TotalAmount)
+                .Take(5)
+                .ToList();
         }
 
         private List<BarChartDto> BuildHourlyBarChart(List<Transaction> transactions, DateTime dayStart)
@@ -311,8 +350,7 @@ namespace BLL.Service
         private static decimal GetTransactionAmount(Transaction transaction, bool isExpense)
         {
             if (transaction.IsExpense != isExpense) return 0m;
-            return transaction.TransactionDetails
-                .Sum(td => td.Price * td.Quantity);
+            return transaction.TotalAmount;
         }
     }
 }

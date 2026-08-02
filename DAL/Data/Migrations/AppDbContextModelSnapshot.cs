@@ -135,7 +135,7 @@ namespace DAL.Data.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@GMAIL.COM",
                             NormalizedUserName = "ADMIN",
-                            PasswordHash = "AQAAAAIAAYagAAAAEEkRvjpAo3GAwcpCxel6jpoB3MY8+lbY5tuhkYiw2F3iYhkSI/yo1y0ma2fR8Ahvxw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAELdh5Y+wsZH7bhGTk0z8vxfdfzJ9iQeQskT2CxXYz9eZTZXnN/LSxtuD0N/UM+Dc9g==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "STATIC-GUID-SEC-12345",
                             Status = "Active",
@@ -278,6 +278,12 @@ namespace DAL.Data.Migrations
                     b.Property<string>("Icon")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsTrackableInventory")
                         .HasColumnType("bit");
 
@@ -287,7 +293,12 @@ namespace DAL.Data.Migrations
                     b.Property<string>("Status")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Categories");
                 });
@@ -465,6 +476,9 @@ namespace DAL.Data.Migrations
 
                     b.Property<string>("Message")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("RelatedId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("TransactionDetailId")
                         .HasColumnType("int");
@@ -697,6 +711,34 @@ namespace DAL.Data.Migrations
                     b.ToTable("TransactionDetails");
                 });
 
+            modelBuilder.Entity("DAL.Entities.UserCategorySetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsTrackableInventory")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId", "CategoryId")
+                        .IsUnique();
+
+                    b.ToTable("UserCategorySettings");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -900,6 +942,16 @@ namespace DAL.Data.Migrations
                     b.Navigation("Member");
                 });
 
+            modelBuilder.Entity("DAL.Entities.Category", b =>
+                {
+                    b.HasOne("DAL.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DAL.Entities.IncomeHistory", b =>
                 {
                     b.HasOne("DAL.Entities.Budget", "Budget")
@@ -1042,6 +1094,25 @@ namespace DAL.Data.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Transaction");
+                });
+
+            modelBuilder.Entity("DAL.Entities.UserCategorySetting", b =>
+                {
+                    b.HasOne("DAL.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("DAL.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

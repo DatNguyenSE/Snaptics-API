@@ -1,4 +1,4 @@
-﻿using DAL.Data;
+using DAL.Data;
 using DAL.Entities;
 using DAL.IRepositories;
 using System;
@@ -12,7 +12,7 @@ namespace DAL.Repositories
     {
         public async Task<bool> HasReceivedThisMonthAsync(int incomeSourceId)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.UtcNow.AddHours(7);
 
             return await _dbSet.AnyAsync(x =>
                 x.IncomeSourceId == incomeSourceId &&

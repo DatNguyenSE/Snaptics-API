@@ -11,6 +11,12 @@ namespace BLL.Dtos
             public string UserId { get; set; }
             public int TransactionDetailId { get; set; }
 
+            // Fields joined from TransactionDetail & Transaction for UI display
+            public string? ItemName { get; set; }
+            public decimal? Amount { get; set; }
+            public DateTime? PurchaseDate { get; set; }
+            public string? CategoryName { get; set; }
+
             public DateTime? ManufactureDate { get; set; }
             public DateTime? ExpiryDate { get; set; }
             public string? UsageFeedback { get; set; }

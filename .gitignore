@@ -484,5 +484,4 @@ $RECYCLE.BIN/
 .vscode
 
 API/appsettings.Development.json
-API/appsettings.Production.json
 .antigravityrules

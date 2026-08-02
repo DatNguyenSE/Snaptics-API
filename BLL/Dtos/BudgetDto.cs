@@ -10,7 +10,7 @@ namespace BLL.Dtos
         public bool IsDefault { get; set; }
         public decimal CurrentAmount { get; set; }
         public decimal Amount { get; set; }
-        public DateTime StartDate { get; set; } = DateTime.Now;
+        public DateTime StartDate { get; set; } = DateTime.UtcNow.AddHours(7);
         public DateTime? EndDate { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }

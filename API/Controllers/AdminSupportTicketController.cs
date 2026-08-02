@@ -10,7 +10,7 @@ namespace API.Controllers
 {
     [Route("api/admin/support/tickets")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "admin,Admin")]
     public class AdminSupportTicketController : ControllerBase
     {
         private readonly ISupportTicketService _supportTicketService;

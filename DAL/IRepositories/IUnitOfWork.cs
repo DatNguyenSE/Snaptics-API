@@ -5,6 +5,7 @@ namespace DAL.IRepositories
     public interface IUnitOfWork
     {
         ICategoryRepository CategoryRepository { get; }
+        IUserCategorySettingRepository UserCategorySettingRepository { get; }
         ITransactionDetailRepository TransactionDetailRepository { get; }
         ITransactionRepository TransactionRepository { get; }
         IItemInventoryRepository ItemInventoryRepository { get; }
@@ -12,6 +13,7 @@ namespace DAL.IRepositories
         IBudgetRepository BudgetRepository { get; }
         INotificationRepository NotificationRepository { get; }
         IIncomeSourceRepository IncomeSourceRepository { get; }
+
         IIncomeHistoryRepository IncomeHistoryRepository { get; }
         IBudgetMemberRepository BudgetMemberRepository { get; }
         IBudgetIncomeSourceRepository BudgetIncomeSourceRepository { get; }
@@ -20,5 +22,6 @@ namespace DAL.IRepositories
         ISupportAttachmentRepository SupportAttachmentRepository { get; }
         Task<bool> Complete();
         bool HasChange();
+        Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync();
     }
 }

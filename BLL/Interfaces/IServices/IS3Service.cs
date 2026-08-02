@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.Http;
@@ -11,5 +11,9 @@ namespace BLL.Interfaces.IServices
         Task<string> UploadFileAsync(IFormFile file, string customerName, string folder = "bills");
         //tạo url tạm thời để xem từ 'key' file đã tải lên, mặc định hết hạn sau 15 phút
         Task<string> GeneratePresignedUrlAsync(string key, int expiryMinutes = 15);
+        //tải file từ s3 về dạng mảng byte
+        Task<byte[]> DownloadFileAsync(string key);
+        //di chuyển file (copy rồi xóa) sang thư mục khác
+        Task<string> MoveObjectAsync(string sourceKey, string destinationFolder = "bills");
     }
 }

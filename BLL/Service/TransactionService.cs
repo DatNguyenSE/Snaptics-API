@@ -12,7 +12,8 @@ namespace BLL.Service
         IUnitOfWork _uow,
         IMapper mapper,
         IItemDictionaryService _itemDictionaryService,
-        IBudgetService _budgetService
+        IBudgetService _budgetService,
+        ICategoryService _categoryService
     ) : ITransactionService
     {
         public async Task<IEnumerable<TransactionDto>
@@ -28,16 +29,67 @@ namespace BLL.Service
             return mapper.Map<TransactionDto>(transaction);
         }
 
+        private async Task CheckBudgetPermissionAsync(int budgetId, string userId, bool checkActive = true)
+        {
+            var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
+            if (budget == null)
+                throw new Exception("Ví ngân sách không tồn tại.");
+                
+            if (checkActive && !budget.IsActive)
+                throw new Exception("Ví ngân sách đã bị khóa.");
+
+            if (budget.UserId == userId) return;
+
+            var members = await _uow.BudgetMemberRepository.FindAsync(m => m.BudgetId == budgetId && m.MemberId == userId);
+            var member = members.FirstOrDefault();
+                
+            if (member == null || member.Status != DAL.Enums.InvitationStatus.Accepted || member.Role != DAL.Enums.BudgetRole.Editor)
+            {
+                throw new Exception("Bạn không có quyền thực hiện thao tác trên ví ngân sách này.");
+            }
+        }
+
         public async Task<TransactionDto> CreateAsync(TransactionDto transactionDto)
         {
-            var entity = mapper.Map<DAL.Entities.Transaction>(transactionDto);
-            if (entity == null)
+            if (transactionDto == null) throw new ArgumentNullException(nameof(transactionDto));
+
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
             {
-                throw new Exception("Failed to create transaction");
+                if (transactionDto.BudgetId.HasValue)
+                {
+                    await CheckBudgetPermissionAsync(transactionDto.BudgetId.Value, transactionDto.UserId);
+                }
+
+                var entity = mapper.Map<DAL.Entities.Transaction>(transactionDto);
+                if (entity == null)
+                {
+                    throw new Exception("Failed to create transaction");
+                }
+
+                await _uow.TransactionRepository.AddAsync(entity);
+
+                if (transactionDto.BudgetId.HasValue)
+                {
+                    var budget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId.Value);
+                    if (budget != null)
+                    {
+                        decimal realValue = transactionDto.IsExpense ? -transactionDto.TotalAmount : transactionDto.TotalAmount;
+                        budget.CurrentAmount += realValue;
+                        _uow.BudgetRepository.Update(budget);
+                    }
+                }
+
+                await _uow.Complete();
+                await dbTransaction.CommitAsync();
+
+                return mapper.Map<TransactionDto>(entity);
             }
-            await _uow.TransactionRepository.AddAsync(entity);
-            await _uow.Complete();
-            return mapper.Map<TransactionDto>(entity);
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
         //hàm này sẽ tạo Transaction + TransactionDetails + Category (nếu chưa có) + ItemInventory (nếu category được tracking)
@@ -46,11 +98,22 @@ namespace BLL.Service
             if (dto == null) throw new ArgumentNullException(nameof(dto), "Payload (Hóa đơn) không được để trống.");
             if (dto.Items == null) dto.Items = new List<CreateTransactionDetailItemDto>();
 
+            // Normalize category names and default empty/unknown to "Khác"
+            foreach (var item in dto.Items)
+            {
+                if (item != null && (string.IsNullOrWhiteSpace(item.Category) || 
+                    item.Category.Trim().Equals("string", StringComparison.OrdinalIgnoreCase) ||
+                    item.Category.Trim().Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                    item.Category.Trim().Equals("Khác", StringComparison.OrdinalIgnoreCase)))
+                {
+                    item.Category = "Khác";
+                }
+            }
+
             // 1. Gom tất cả CategoryName thành mảng duy nhất, loại bỏ null/empty và giá trị "string"
             var categoryNames = dto.Items
                 .Where(i => i != null)
                 .Select(i => i.Category)
-                .Where(c => !string.IsNullOrWhiteSpace(c) && !c.Trim().Equals("string", StringComparison.OrdinalIgnoreCase))
                 .Select(c => c!)
                 .Distinct()
                 .ToList();
@@ -61,9 +124,13 @@ namespace BLL.Service
             {
                 // 2. Lấy các category đã có từ DB (chỉ query 1 lần)
                 var existingCategories = await _uow.CategoryRepository
-                    .FindAsync(c => categoryNames.Contains(c.Name!));
+                    .FindAsync(c => !c.IsDeleted && categoryNames.Contains(c.Name!) &&
+                        (c.IsDefault || c.UserId == dto.UserId));
 
-                foreach (var cat in existingCategories)
+                foreach (var cat in existingCategories
+                    .OrderByDescending(c => c.UserId == dto.UserId)
+                    .GroupBy(c => c.Name!, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First()))
                 {
                     categoryDict[cat.Name!] = cat.Id;
                 }
@@ -72,22 +139,23 @@ namespace BLL.Service
                 var existingNames = existingCategories.Select(c => c.Name).ToList();
                 var missingNames = categoryNames.Except(existingNames, StringComparer.OrdinalIgnoreCase).ToList();
 
-                // 4. Batch Insert các category mới
+                // 4. Map các category chưa có về "Khác" thay vì tạo mới
                 if (missingNames.Any())
                 {
-                    var newCategories = missingNames.Select(name => new Category { Name = name }).ToList();
-                    await _uow.CategoryRepository.AddRangeAsync(newCategories);
-                    await _uow.Complete(); // Lưu để EF Core sinh ra ID cho các newCategories
+                    var otherCategoryList = await _uow.CategoryRepository.FindAsync(c => 
+                        c.Name == "Khác" && (c.IsDefault || c.UserId == dto.UserId) && !c.IsDeleted);
+                    var bestOtherCategory = otherCategoryList.OrderByDescending(c => c.UserId == dto.UserId).FirstOrDefault();
 
-                    // Nạp thêm ID mới vào Dictionary
-                    foreach (var cat in newCategories)
+                    int otherId = bestOtherCategory?.Id ?? 0;
+
+                    foreach (var name in missingNames)
                     {
-                        categoryDict[cat.Name!] = cat.Id;
+                        categoryDict[name] = otherId;
                     }
                 }
             }
             // 5. Tạo entity Transaction
-            int usedBudgetId = await _budgetService.DeductMoneyAsync(dto.UserId, dto.TotalAmount, dto.BudgetId);
+            int usedBudgetId = await _budgetService.DeductMoneyAsync(dto.UserId, dto.TotalAmount, dto.BudgetId, dto.IsExpense);
             var transaction = new DAL.Entities.Transaction
             {
                 BudgetId = usedBudgetId,
@@ -100,7 +168,7 @@ namespace BLL.Service
                 IsExpense = dto.IsExpense,
                 Status = DAL.Enums.TransactionStatusType.Completed, // Mặc định
                 IsAiEstimated = true,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow.AddHours(7),
                 TransactionDetails = new List<TransactionDetail>()
             };
 
@@ -113,15 +181,10 @@ namespace BLL.Service
                 if (item == null) continue;
 
                 int categoryId = 0;
-                bool isValidCategory = !string.IsNullOrWhiteSpace(item.Category) && !item.Category.Trim().Equals("string", StringComparison.OrdinalIgnoreCase);
-
-                if (isValidCategory && categoryDict.TryGetValue(item.Category, out var id))
+                
+                if (!string.IsNullOrWhiteSpace(item.Category) && categoryDict.TryGetValue(item.Category, out var id))
                 {
                     categoryId = id;
-                }
-                else
-                {
-                    throw new ArgumentException($"Sản phẩm '{item.ItemName}' có danh mục không hợp lệ hoặc chưa được phân loại. Vui lòng phân loại tất cả các sản phẩm.");
                 }
 
                 transaction.TransactionDetails.Add(new TransactionDetail
@@ -143,18 +206,15 @@ namespace BLL.Service
             // 8. Auto create ItemInventory cho category được tracking
             foreach (var detail in transaction.TransactionDetails)
             {
-                var category = await _uow.CategoryRepository
-                    .GetByIdAsync(detail.CategoryId);
-
-                if (category != null && category.IsTrackableInventory)
+                if (await _categoryService.GetEffectiveInventoryTrackingAsync(detail.CategoryId, transaction.UserId))
                 {
                     var inventory = new ItemInventory
                     {
                         UserId = transaction.UserId,
                         TransactionDetailId = detail.Id,
-                        UsageStatus = UsageStatusType.Frequent,
+                        UsageStatus = UsageStatusType.NotEvaluated,
                         IsReviewed = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = transaction.TransactionDate
                     };
 
                     await _uow.ItemInventoryRepository
@@ -183,7 +243,7 @@ namespace BLL.Service
                 UserId = userId,
                 MerchantName = billDto.MerchantName ?? "Hóa đơn siêu thị",
                 ImageKey = BillImageKey,
-                TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow,
+                TransactionDate = billDto.TransactionDate ?? DateTime.UtcNow.AddHours(7),
                 TotalAmount = finalTotal,
                 IsExpense = isExpense,
                 // insert transation-details from parameter billDto.Items
@@ -234,7 +294,7 @@ namespace BLL.Service
                 UserId = userId,
                 MerchantName = imageDto.ItemName, 
                 ImageKey = ImageKey,
-                TransactionDate = DateTime.UtcNow,
+                TransactionDate = DateTime.UtcNow.AddHours(7),
                 TotalAmount = imageDto.EstimatedPriceVND,
                 IsExpense = isExpense,
                 Items = new List<CreateTransactionDetailItemDto>
@@ -242,7 +302,7 @@ namespace BLL.Service
                     new CreateTransactionDetailItemDto
                     {
                         ItemName = imageDto.ItemName,
-                        Price = imageDto.EstimatedPriceVND,
+                        Price = imageDto.Quantity > 0 ? Math.Round(imageDto.EstimatedPriceVND / (decimal)imageDto.Quantity, 2) : imageDto.EstimatedPriceVND,
                         Quantity = imageDto.Quantity,
                         Category = imageDto.Category,
                         EstimatedCalories = imageDto.EstimatedCalories,
@@ -288,29 +348,165 @@ namespace BLL.Service
 
         public async Task<TransactionDto> UpdateAsync(int transactionId, TransactionDto transactionDto)
         {
-            var existingTransaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
-            if (existingTransaction == null)
-            {
-                throw new Exception("Transaction not found");
-            }
+            if (transactionDto == null) throw new ArgumentNullException(nameof(transactionDto));
 
-            //update data
-            mapper.Map(transactionDto, existingTransaction);
-            _uow.TransactionRepository.Update(existingTransaction);
-            await _uow.Complete();
-            return mapper.Map<TransactionDto>(existingTransaction);
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
+            {
+                var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
+                if (transaction == null) throw new Exception("Transaction not found");
+
+                Budget? oldBudget = null;
+                if (transaction.BudgetId.HasValue)
+                {
+                    oldBudget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId.Value);
+                }
+
+                if (transactionDto.IsDeleted && !transaction.IsDeleted)
+                {
+                    if (oldBudget != null)
+                    {
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId, checkActive: false);
+                        decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+                        oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValue;
+                        _uow.BudgetRepository.Update(oldBudget);
+                    }
+                    
+                    transaction.IsDeleted = true;
+                    
+                    _uow.TransactionRepository.Update(transaction);
+                    await _uow.Complete();
+                    await dbTransaction.CommitAsync();
+                    return mapper.Map<TransactionDto>(transaction);
+                }
+
+                decimal oldRealValueForUpdate = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+
+                transaction.Name = transactionDto.Name;
+                transaction.IsExpense = transactionDto.IsExpense;
+                transaction.Note = transactionDto.Note;
+                transaction.TransactionDate = transactionDto.TransactionDate;
+                transaction.ImageKey = transactionDto.ImageKey;
+                transaction.Status = transactionDto.Status;
+
+                decimal newTotalAmount = 0;
+
+                foreach (var detailDto in transactionDto.TransactionDetails)
+                {
+                    if (detailDto.Id == 0)
+                    {
+                        var newDetail = new TransactionDetail 
+                        { 
+                            ItemName = detailDto.ItemName, 
+                            Price = detailDto.Price,
+                            Quantity = detailDto.Quantity,
+                            CategoryId = detailDto.CategoryId,
+                            EstimatedCalories = detailDto.EstimatedCalories,
+                            Unit = detailDto.Unit
+                        };
+                        transaction.TransactionDetails.Add(newDetail);
+                        newTotalAmount += detailDto.Price * detailDto.Quantity;
+                    }
+                    else
+                    {
+                        var existingDetail = transaction.TransactionDetails.FirstOrDefault(d => d.Id == detailDto.Id);
+                        if (existingDetail != null)
+                        {
+                            if (detailDto.IsDeleted)
+                            {
+                                _uow.TransactionDetailRepository.Delete(existingDetail);
+                            }
+                            else
+                            {
+                                existingDetail.ItemName = detailDto.ItemName;
+                                existingDetail.Price = detailDto.Price;
+                                existingDetail.Quantity = detailDto.Quantity;
+                                existingDetail.CategoryId = detailDto.CategoryId;
+                                existingDetail.EstimatedCalories = detailDto.EstimatedCalories;
+                                existingDetail.Unit = detailDto.Unit;
+
+                                newTotalAmount += detailDto.Price * detailDto.Quantity;
+                            }
+                        }
+                    }
+                }
+
+                transaction.TotalAmount = newTotalAmount;
+                decimal newRealValue = transaction.IsExpense ? -newTotalAmount : newTotalAmount;
+
+                if (transactionDto.BudgetId != transaction.BudgetId)
+                {
+                    if (oldBudget != null)
+                    {
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId, checkActive: false);
+                        oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate;
+                        _uow.BudgetRepository.Update(oldBudget);
+                    }
+
+                    if (transactionDto.BudgetId.HasValue)
+                    {
+                        await CheckBudgetPermissionAsync(transactionDto.BudgetId.Value, transactionDto.UserId, checkActive: true);
+                        var newBudget = await _uow.BudgetRepository.GetByIdAsync(transactionDto.BudgetId.Value);
+                        if (newBudget != null)
+                        {
+                            newBudget.CurrentAmount = newBudget.CurrentAmount + newRealValue;
+                            _uow.BudgetRepository.Update(newBudget);
+                        }
+                    }
+
+                    transaction.BudgetId = transactionDto.BudgetId;
+                }
+                else
+                {
+                    if (oldBudget != null)
+                    {
+                        await CheckBudgetPermissionAsync(oldBudget.Id, transactionDto.UserId, checkActive: false);
+                        oldBudget.CurrentAmount = oldBudget.CurrentAmount - oldRealValueForUpdate + newRealValue;
+                        _uow.BudgetRepository.Update(oldBudget);
+                    }
+                }
+
+                _uow.TransactionRepository.Update(transaction);
+                await _uow.Complete();
+
+                await dbTransaction.CommitAsync();
+                return mapper.Map<TransactionDto>(transaction);
+            }
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
-        public async Task<TransactionDto> DeleteAsync(int transactionId)
+        public async Task<TransactionDto> DeleteAsync(int transactionId, string userId)
         {
-            var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
-            if (transaction == null)
+            using var dbTransaction = await _uow.BeginTransactionAsync();
+            try
             {
-                throw new Exception("Transaction not found");
+                var transaction = await _uow.TransactionRepository.GetByIdAsync(transactionId);
+                if (transaction == null) throw new Exception("Transaction not found");
+
+                var budget = await _uow.BudgetRepository.GetByIdAsync(transaction.BudgetId ?? 0);
+                if (budget != null)
+                {
+                    await CheckBudgetPermissionAsync(budget.Id, userId);
+                    decimal oldRealValue = transaction.IsExpense ? -transaction.TotalAmount : transaction.TotalAmount;
+                    budget.CurrentAmount = budget.CurrentAmount - oldRealValue;
+                    _uow.BudgetRepository.Update(budget);
+                }
+
+                _uow.TransactionRepository.Delete(transaction);
+                await _uow.Complete();
+                await dbTransaction.CommitAsync();
+
+                return mapper.Map<TransactionDto>(transaction);
             }
-            _uow.TransactionRepository.Delete(transaction);
-            await _uow.Complete();
-            return mapper.Map<TransactionDto>(transaction);
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<IEnumerable<TransactionDto>> GetUnconfirmedTransactionsByDateAsync(DateTime date)

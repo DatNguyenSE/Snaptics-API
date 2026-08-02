@@ -7,7 +7,7 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("api/admin/system")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "admin,Admin")]
     public class AdminSystemController : ControllerBase
     {
         private readonly IMaintenanceService _maintenanceService;

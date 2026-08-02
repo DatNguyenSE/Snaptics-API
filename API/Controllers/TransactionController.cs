@@ -65,7 +65,7 @@ namespace API.Controllers
             {
                 // Handle multiple "Items" form fields (e.g., from Swagger's "Add object item" button)
                 var itemsString = itemsValues.Count > 1 
-                    ? "[" + string.Join(",", itemsValues) + "]" 
+                    ? "[" + string.Join(",", itemsValues.ToArray()) + "]" 
                     : itemsValues.ToString();
                 
                 // If it's a single item but not wrapped in an array, wrap it
@@ -108,14 +108,20 @@ namespace API.Controllers
          
             var billImageKey = await _s3Service.UploadFileAsync(image, "bill-images");
           
+            try
+            {
+                var transaction =
+                    await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey, isExpense);
 
-            var transaction =
-                await _transactionService.CreateFromBillAsync(userId, billDto, billImageKey, isExpense);
-
-            return CreatedAtAction(
-                nameof(GetTransaction),
-                new { id = transaction.Id },
-                transaction);
+                return CreatedAtAction(
+                    nameof(GetTransaction),
+                    new { id = transaction.Id },
+                    transaction);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
@@ -137,14 +143,23 @@ namespace API.Controllers
             var userId = User.GetUserId(); 
 
             var imageKey = await _s3Service.UploadFileAsync(image, "analyze-images");
-        
-            var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey, isExpense);
-            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+            try
+            {
+                var transaction = await _transactionService.CreateFromImageAnalyzeAsync(userId, imageDto, imageKey, isExpense);
+                return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
         public async Task<ActionResult<TransactionDto>>UpdateTransaction(int id, [FromBody] TransactionDto transactionDto)
         {
+            var userId = User.GetUserId();
+            if (userId == null) return Unauthorized();
+            transactionDto.UserId = userId;
             var updateTransaction = await _transactionService.UpdateAsync(id, transactionDto);
             return Ok(updateTransaction);
         }
@@ -152,7 +167,9 @@ namespace API.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<TransactionDto>> DeleteTransaction(int id)
         {
-            var deletedTransaction = await _transactionService.DeleteAsync(id);
+            var userId = User.GetUserId();
+            if (userId == null) return Unauthorized();
+            var deletedTransaction = await _transactionService.DeleteAsync(id, userId);
             return Ok(deletedTransaction);
         }
 

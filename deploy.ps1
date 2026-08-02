@@ -4,7 +4,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. Build
 Write-Host "`n[1/5] Đang gói code mới vào Docker..." -ForegroundColor Yellow
-docker build -t snaptics-api .
+docker build --no-cache -t snaptics-api .
 
 # 2. Tag
 Write-Host "`n[2/5] Đang dán nhãn cho gói code..." -ForegroundColor Yellow
@@ -21,7 +21,7 @@ docker push 923988301802.dkr.ecr.ap-southeast-1.amazonaws.com/snaptics-api:lates
 
 # 5. Khởi động lại Server
 Write-Host "`n[5/5] Đang ra lệnh cho AWS đổi nhân viên mới (Force New Deployment)..." -ForegroundColor Yellow
-aws ecs update-service --cluster Snaptics-Cluster --service snaptics-api-service --force-new-deployment --region ap-southeast-1 | Out-Null
+aws ecs update-service --cluster Snaptics-Cluster --service snaptics-backend-service --force-new-deployment --region ap-southeast-1 | Out-Null
 
 Write-Host "`n==========================================" -ForegroundColor Green
 Write-Host "🎉 ĐÃ GỬI LỆNH DEPLOY THÀNH CÔNG!" -ForegroundColor Green

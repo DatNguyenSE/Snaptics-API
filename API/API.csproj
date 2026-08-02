@@ -20,6 +20,8 @@
     <PackageReference Include="Serilog.Sinks.AwsCloudWatch" Version="4.4.42" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
+    <PackageReference Include="Amazon.Extensions.Configuration.SystemsManager" Version="7.0.0" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.5" />
   </ItemGroup>
 
   <ItemGroup>

@@ -12,69 +12,61 @@ namespace API.Controllers
     [Authorize]
     [Route("ai")]
     [ApiController]
-    public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service) : ControllerBase
+    public class AiController(IAiService _aiService, ICategoryService _CateService, IS3Service _s3Service, ISqsPublisherService _sqsPublisher) : ControllerBase
     {
-        /// <summary>
-        /// Tính năng 1: Phân tích ảnh bằng AI.
-        /// Luồng hoạt động:
-        /// 1. Nhận file ảnh từ người dùng.
-        /// 2. Validate kích thước file.
-        /// 3. Gửi ảnh sang AiService để AI (LLM) phân tích.
-        /// 4. AI trả về tên item, loại, calo ước tính, giá VND ước tính.
-        /// Client dùng kết quả này để gọi POST /TransactionDetail nếu muốn lưu.
-        /// </summary>
-        /// <param name="image">File ảnh (jpg, png, webp, heic)</param>
         [HttpPost("analyze-image")]
-        [ProducesResponseType(typeof(AnalyzeImageResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<AnalyzeImageResponseDto>> AnalyzeImage(
+        public async Task<IActionResult> AnalyzeImage(
             IFormFile image,
             [FromQuery] bool trackCalories = true,
             [FromQuery] bool estimatePrice = true)
         {
-            // Bước 1: Validate đầu vào, đảm bảo có file và không trống
-            if (image == null || image.Length == 0)
-                return BadRequest("Vui lòng chọn file ảnh.");
+            if (image == null || image.Length == 0) return BadRequest("Vui lòng chọn file ảnh.");
+            if (image.Length > 10 * 1024 * 1024) return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
 
-            // Bước 2: Giới hạn dung lượng ảnh tối đa là 10MB để tránh overload
-            if (image.Length > 10 * 1024 * 1024)
-                return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+            var s3Key = await _s3Service.UploadFileAsync(image, userId, "temp-ai");
 
-            // Bước 3: Chuyển tiếp ảnh cho AiService để xử lý và phân tích
-            var result = await _aiService.AnalyzeImageAsync(image, trackCalories, estimatePrice);
+            var aiTask = new AiTaskMessageDto
+            {
+                TaskType = "AnalyzeImage",
+                S3ObjectKey = s3Key,
+                ContentType = image.ContentType,
+                UserId = userId,
+                TrackCalories = trackCalories,
+                EstimatePrice = estimatePrice
+            };
 
-            return Ok(result);
+            await _sqsPublisher.SendMessageAsync(aiTask);
+
+            return Accepted(new { message = "Request accepted. Processing in background.", s3Key });
         }
 
-        /// <summary>
-        /// Tính năng 2: Đọc hóa đơn/bill bằng Azure Document Intelligence.
-        /// Luồng hoạt động:
-        /// 1. Nhận ảnh/PDF hóa đơn từ client.
-        /// 2. Gửi lên Azure Document Intelligence để trích xuất dữ liệu (tên cửa hàng, tổng tiền, ngày mua...).
-        /// 3. Lấy danh sách các món hàng (Items) và dùng LLM để tự động phân loại (Food/Object).
-        /// Client confirm rồi gọi POST /Transaction + POST /TransactionDetail để lưu.
-        /// </summary>
-        /// <param name="billImage">File ảnh bill/hóa đơn (jpg, png, tiff, pdf)</param>
         [HttpPost("read-bill")]
-        [ProducesResponseType(typeof(BillReadResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<BillReadResultDto>> ReadBill(IFormFile billImage)
+        public async Task<IActionResult> ReadBill(IFormFile billImage)
         {
-            // Bước 1: Kiểm tra xem client có gửi file lên không
-            if (billImage == null || billImage.Length == 0)
-                return BadRequest("Vui lòng chọn file hóa đơn.");
+            if (billImage == null || billImage.Length == 0) return BadRequest("Vui lòng chọn file hóa đơn.");
+            if (billImage.Length > 20 * 1024 * 1024) return BadRequest("Kích thước file không được vượt quá 20MB.");
 
-            // Bước 2: Giới hạn dung lượng file là 20MB (PDF có thể có dung lượng lớn hơn ảnh thường)
-            if (billImage.Length > 20 * 1024 * 1024)
-                return BadRequest("Kích thước file không được vượt quá 20MB.");
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+            var s3Key = await _s3Service.UploadFileAsync(billImage, userId, "temp-ai");
 
-            // Bước 3: Gửi file qua AiService để dùng Azure nhận diện và bóc tách thông tin
-            var result = await _aiService.ReadBillAsync(billImage);
+            var aiTask = new AiTaskMessageDto
+            {
+                TaskType = "ReadBill",
+                S3ObjectKey = s3Key,
+                ContentType = billImage.ContentType,
+                UserId = userId
+            };
 
+            await _sqsPublisher.SendMessageAsync(aiTask);
 
-            return Ok(result);
+            return Accepted(new { message = "Request accepted. Processing in background.", s3Key });
         }
     }
 }

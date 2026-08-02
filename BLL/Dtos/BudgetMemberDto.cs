@@ -33,5 +33,6 @@ namespace BLL.Dtos
         public InvitationStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? JoinedAt { get; set; }
+        public bool IsOwner { get; set; }
     }
 }

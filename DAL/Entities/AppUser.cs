@@ -17,7 +17,7 @@ namespace DAL.Entities
         
         public TimeSpan? DefaultReminderTime { get; set; } = new TimeSpan(20, 0, 0); // Mặc định 20:00
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
         public string? Status { get; set; } = "Active"; 
 
           

@@ -23,7 +23,7 @@ namespace DAL.Entities
         public bool IsReviewed { get; set; } = false;
         public DateTime? LastReviewDate { get; set; }
         public UsageStatusType UsageStatus { get; set; } = UsageStatusType.Frequent;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
 
         
 

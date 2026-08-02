@@ -1,8 +1,4 @@
     using System.Text;
-using Amazon;
-using Amazon.CloudWatchLogs;
-using Serilog;
-using Serilog.Sinks.AwsCloudWatch;
 using Amazon.Budgets;
 using API.Mappings;
 using API.Middlewares;
@@ -26,35 +22,18 @@ using Microsoft.OpenApi;
 using Amazon.SimpleNotificationService;
 using BLL.Interfaces;
 
-Serilog.Debugging.SelfLog.Enable(Console.Error);
 var builder = WebApplication.CreateBuilder(args);
 
-var accessKey = builder.Configuration.GetSection("AWS_CloudWatch")["AccessKey"];
-var secretKey = builder.Configuration.GetSection("AWS_CloudWatch")["SecretKey"];
-var regionString = builder.Configuration.GetSection("AWS_CloudWatch")["Region"] ?? "ap-southeast-1";
+// Kết nối tới AWS Parameter Store để lấy cấu hình bí mật (Bỏ qua nếu lỗi ở Local để tránh crash)
+try {
+    builder.Configuration.AddSystemsManager("/Snaptics/Production/");
+} catch (Exception ex) {
+    Console.WriteLine($"Cảnh báo: Không thể tải cấu hình từ AWS Parameter Store. Chi tiết: {ex.Message}");
+}
 
-var awsCredentials = new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey);
-var region = RegionEndpoint.GetBySystemName(regionString);
-var cloudWatchClient = new AmazonCloudWatchLogsClient(awsCredentials, region);
+// Add services to the container.
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .MinimumLevel.Information()
-    .WriteTo.Console()
-    .WriteTo.AmazonCloudWatch(
-        logGroup: "/Snaptic/BackendLogs",
-        logStreamPrefix: "API-",
-        cloudWatchClient: cloudWatchClient)
-    .CreateLogger();
-
-try
-{
-    Log.Information("Đang khởi động hệ thống Snaptic");
-    builder.Host.UseSerilog();
-
-    // Add services to the container.
-
-    builder.Services.AddControllers();
+builder.Services.AddControllers();
 
 // register AutoMapper 
 builder.Services.AddAutoMapper(cfg => 
@@ -146,6 +125,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuer = false, // skip issuer
             ValidateAudience = false // skip Audience
         };
+
+        // Cho phép SignalR đọc token từ query string
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddCors();
@@ -155,7 +148,7 @@ builder.Services.AddHangfire(configuration => configuration
     .UseRecommendedSerializerSettings()
     .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// builder.Services.AddHangfireServer();
+builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
 builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
@@ -163,17 +156,27 @@ builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddSingleton(typeof(Amazon.SQS.IAmazonSQS), sp =>
+{
+    var awsOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BLL.Configurations.AwsSettings>>().Value;
+    var region = string.IsNullOrEmpty(awsOptions.Region) ? "ap-southeast-1" : awsOptions.Region;
+    return new Amazon.SQS.AmazonSQSClient(Amazon.RegionEndpoint.GetBySystemName(region));
+});
+builder.Services.AddScoped<ISqsPublisherService, SqsPublisherService>();
 
 builder.Services.Configure<AwsSnsSettings>(builder.Configuration.GetSection("AwsSns"));
 builder.Services.AddScoped<ISnsService, SnsService>();
 
-var app = builder.Build();
+// Khởi chạy công nhân lắng nghe AWS SQS
+builder.Services.AddHostedService<API.BackgroundServices.SqsConsumerService>();
 
+var app = builder.Build();
+ 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<MaintenanceMiddleware>();
 app.UseCors(x => x
-    .WithOrigins("http://localhost:4200", "https://localhost:4200")
+    .SetIsOriginAllowed(origin => true)
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials() 
@@ -220,16 +223,8 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
+app.UseWebSockets();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 
-    app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Error occurred while starting the application.");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
+app.Run();

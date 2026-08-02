@@ -21,7 +21,7 @@ namespace DAL.Entities
         public BudgetRole Role { get; set; } = BudgetRole.Viewer;
         public InvitationStatus Status { get; set; } = InvitationStatus.Pending;
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
         public DateTime? JoinedAt { get; set; }
     }
 }

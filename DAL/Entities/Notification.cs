@@ -13,8 +13,9 @@ namespace DAL.Entities
         public string? Message { get; set; }
         public bool IsRead { get; set; } = false;
         public NotificationType Type { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
         public int? ItemInventoryId { get; set; }
+        public int? RelatedId { get; set; }
 
         public int? TransactionDetailId { get; set; }
         // Navigation property

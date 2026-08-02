@@ -63,8 +63,9 @@ namespace BLL.Service
                 UserId = userToInvite.Id,
                 Message = $"{ownerName} vừa mời bạn tham gia ví {budget.Name}.",
                 Type = NotificationType.BudgetInvitation,
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false
+                CreatedAt = DateTime.UtcNow.AddHours(7),
+                IsRead = false,
+                RelatedId = budgetMember.Id
             });
 
             return new BudgetMemberResponseDto
@@ -94,7 +95,7 @@ namespace BLL.Service
             else if (request.Status == InvitationStatus.Accepted)
             {
                 invitation.Status = InvitationStatus.Accepted;
-                invitation.JoinedAt = DateTime.UtcNow;
+                invitation.JoinedAt = DateTime.UtcNow.AddHours(7);
                 _uow.BudgetMemberRepository.Update(invitation);
             }
             
@@ -104,23 +105,65 @@ namespace BLL.Service
         public async Task<IEnumerable<BudgetMemberResponseDto>> GetBudgetMembersAsync(int budgetId, string userId)
         {
             var budget = await _uow.BudgetRepository.GetByIdAsync(budgetId);
-            if (budget == null || budget.UserId != userId)
-                throw new Exception("Budget not found or you are not the owner.");
+            if (budget == null)
+                throw new Exception("Budget not found.");
+
+            bool isOwner = budget.UserId == userId;
+            bool isMember = false;
+
+            if (!isOwner)
+            {
+                var member = await _uow.BudgetMemberRepository.GetByBudgetAndMemberAsync(budgetId, userId);
+                isMember = member != null && member.Status == InvitationStatus.Accepted;
+            }
+
+            if (!isOwner && !isMember)
+                throw new Exception("Unauthorized to view members of this budget.");
 
             var members = await _uow.BudgetMemberRepository.GetMembersByBudgetIdAsync(budgetId);
 
-            return members.Select(bm => new BudgetMemberResponseDto
+            var resultList = new List<BudgetMemberResponseDto>();
+
+            // Thêm chủ ví vào đầu danh sách
+            if (!string.IsNullOrEmpty(budget.UserId))
+            {
+                var owner = await _userManager.FindByIdAsync(budget.UserId);
+                if (owner != null)
+                {
+                    resultList.Add(new BudgetMemberResponseDto
+                    {
+                        Id = 0,
+                        BudgetId = budget.Id,
+                        BudgetName = budget.Name,
+                        MemberId = owner.Id,
+                        MemberName = owner.DisplayName ?? owner.UserName,
+                        MemberEmail = owner.Email,
+                        Role = BudgetRole.Editor,
+                        Status = InvitationStatus.Accepted,
+                        CreatedAt = budget.CreatedAt,
+                        JoinedAt = budget.CreatedAt,
+                        IsOwner = true
+                    });
+                }
+            }
+
+            // Thêm danh sách thành viên
+            resultList.AddRange(members.Select(bm => new BudgetMemberResponseDto
             {
                 Id = bm.Id,
                 BudgetId = bm.BudgetId,
+                BudgetName = budget.Name,
                 MemberId = bm.MemberId,
                 MemberName = bm.Member?.DisplayName ?? bm.Member?.UserName,
                 MemberEmail = bm.Member?.Email,
                 Role = bm.Role,
                 Status = bm.Status,
                 CreatedAt = bm.CreatedAt,
-                JoinedAt = bm.JoinedAt
-            });
+                JoinedAt = bm.JoinedAt,
+                IsOwner = bm.MemberId == budget.UserId
+            }));
+
+            return resultList;
         }
 
         public async Task<IEnumerable<BudgetMemberResponseDto>> GetMySharedBudgetsAsync(string userId)

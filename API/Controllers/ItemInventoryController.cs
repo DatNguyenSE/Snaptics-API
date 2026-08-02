@@ -1,3 +1,4 @@
+using API.Extensions;
 using BLL.Dtos;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Mvc;
@@ -10,17 +11,13 @@ namespace API.Controllers
     [Authorize]
     public class ItemInventoryController(IItemInventoryService itemInventoryService, IItemReviewJobService itemReviewJobService) : Controller
     {
-        private string GetUserId()
-        {
-            return "user-12345-mock-id";
-        }
-
         [HttpGet("user")]
         public async Task<ActionResult<IEnumerable<ItemInventoryDto>>> GetUserItemInventories()
         {
             try
             {
-                var userId = GetUserId();
+                var userId = User.GetUserId();
+                if (userId == null) return Unauthorized("User ID not found in claims.");
                 var itemInventories = await itemInventoryService.GetByUserIdAsync(userId);
                 return Ok(itemInventories);
             }

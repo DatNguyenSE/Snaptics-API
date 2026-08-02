@@ -14,6 +14,10 @@ namespace DAL.Entities
         public string? Icon { get; set; } 
         public string? Color { get; set; } 
         public string? Status { get; set; } = "Active";
-
+        
+        public bool IsDefault { get; set; } = true;
+        public string? UserId { get; set; }
+        public AppUser? User { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }

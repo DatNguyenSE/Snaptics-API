@@ -22,6 +22,6 @@ namespace DAL.Entities
         /// <summary>Số lần mặt hàng được so khớp thành công</summary>
         public int HitCount { get; set; } = 1;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow.AddHours(7);
     }
 }

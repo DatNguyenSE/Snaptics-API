@@ -26,4 +26,12 @@ namespace BLL.Dtos
         public decimal Income { get; set; }
         public decimal Expense { get; set; }
     }
+
+    public class ActiveHourDto
+    {
+        public int Hour { get; set; }
+        public string Label { get; set; }
+        public int TransactionCount { get; set; }
+        public decimal TotalAmount { get; set; }
+    }
 }

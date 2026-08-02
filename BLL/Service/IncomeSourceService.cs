@@ -69,7 +69,8 @@ namespace BLL.Service
                 throw new KeyNotFoundException("Income Source not found");
             }
 
-            _uow.IncomeSourceRepository.Delete(existingEntity);
+            existingEntity.IsActive = false;
+            _uow.IncomeSourceRepository.Update(existingEntity);
 
             await _uow.Complete();
 
