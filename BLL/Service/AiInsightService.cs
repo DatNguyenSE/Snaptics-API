@@ -250,18 +250,17 @@ namespace BLL.Service
 Dưới đây là danh sách đồ đạc của người dùng:
 " + sb.ToString() + @"
 Nhiệm vụ: 
-1. Tìm những đồ 'Frequent' (Dùng thường xuyên), hãy gợi ý họ mua lại hoặc canh săn sale.
-2. Tìm những đồ 'Unused' (Không dùng nữa) hoặc 'Seldom' (Ít dùng), tính tổng lãng phí (tiền) và khuyên họ mang đi thanh lý.
-Viết RA DUY NHẤT MỘT CÂU THÔNG BÁO NGẮN GỌN (dưới 150 ký tự) ghép chung 2 ý trên (nếu có). 
+Tìm những đồ 'Frequent' (Dùng thường xuyên), hãy phân tích và gợi ý các sản phẩm liên quan hoặc cùng thể loại (VD: có chuột gaming thì gợi ý bàn phím, màn hình đang sale...).
+Viết RA DUY NHẤT MỘT CÂU THÔNG BÁO NGẮN GỌN (dưới 150 ký tự) để gợi ý cho người dùng. 
 Lưu ý: Bắt buộc trong câu phải có từ 'đồ đạc' để hệ thống nhận diện (VD: Đồ đạc của bạn...).
-Nếu không có gì đáng nhắc, hoặc không tính toán được lãng phí đáng kể, hãy trả về chữ 'EMPTY'.";
+Nếu không có gì đáng nhắc, hãy trả về chữ 'EMPTY'.";
 
             try
             {
                 var message = await _aiService.GenerateTextAsync(systemPrompt, "Hãy viết thông báo");
                 message = message?.Trim();
 
-                if (!string.IsNullOrEmpty(message) && message != "EMPTY" && !message.StartsWith("EMPTY"))
+                if (!string.IsNullOrEmpty(message) && message != "EMPTY" && !message.StartsWith("EMPTY") && message.Contains("đồ đạc", StringComparison.OrdinalIgnoreCase))
                 {
                     await _notificationService.CreateAsync(
                         new NotificationDto

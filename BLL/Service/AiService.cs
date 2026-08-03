@@ -219,6 +219,156 @@ namespace BLL.Service
                 throw new Exception($"Lỗi Parse JSON: {ex.Message}. Chuỗi AI: {aiTextResponse}");
             }
         }
+        public async Task<AnalyzeImageResponseDto> AnalyzeImageOpenAiAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true)
+        {
+            var endpoint = _config["AiModel:Endpoint"] ?? "https://api.openai.com/v1/chat/completions";
+            var rawApiKey = _config["AiModel:ApiKey"] ?? throw new InvalidOperationException("Thiếu API Key của AiModel");
+            // Loại bỏ tất cả ký tự ẩn, dấu cách dư thừa, ký tự không phải ASCII để tránh lỗi Header
+            var apiKey = new string(rawApiKey.Where(c => c >= 32 && c <= 126).ToArray()).Trim();
+            var modelName = _config["AiModel:ModelName"] ?? "gpt-4o-mini";
+
+            // 1. Kiểm tra tính hợp lệ của file ảnh đầu vào (không rỗng)
+            if (imageBytes == null || imageBytes.Length == 0)
+                throw new ArgumentException("File ảnh không hợp lệ hoặc rỗng.");
+
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/heic" };
+            if (!allowedTypes.Contains(contentType.ToLower()))
+                throw new ArgumentException($"Định dạng ảnh không hỗ trợ: {contentType}. Hỗ trợ: jpg, png, webp, heic.");
+
+            // Lấy danh sách category từ DB
+            var categories = await _unitOfWork.CategoryRepository.FindAsync(c => !c.IsDeleted && (c.IsDefault || c.UserId == userId));
+            var userCategoryNames = categories
+                .Where(c => c.UserId == userId && !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => c.Name!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var userCategoryNameSet = userCategoryNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var systemCategoryNames = categories
+                .Where(c => c.IsDefault && !string.IsNullOrWhiteSpace(c.Name))
+                .Select(c => c.Name!.Trim())
+                .Where(name => !userCategoryNameSet.Contains(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var userCategoryListStr = userCategoryNames.Any()
+                ? string.Join(", ", userCategoryNames)
+                : "(chưa có danh mục riêng)";
+            var systemCategoryListStr = systemCategoryNames.Any()
+                ? string.Join(", ", systemCategoryNames)
+                : "(không có danh mục hệ thống bổ sung)";
+
+            // 2. Chuyển đổi sang chuỗi Base64
+            string base64Image = Convert.ToBase64String(imageBytes);
+
+            // 3. Xây dựng Prompt động dựa trên cấu hình người dùng (Nâng cao độ chính xác)
+            var promptBuilder = new StringBuilder();
+            promptBuilder.Append("Bạn là một chuyên gia AI phân tích hình ảnh chuyên sâu");
+            if (estimatePrice) promptBuilder.Append(" kết hợp vai trò chuyên gia thẩm định giá");
+            promptBuilder.Append(". Hãy thực hiện phân tích bức ảnh này và trả về kết quả đáp ứng các tiêu chí nghiêm ngặt sau:\n");
+
+            promptBuilder.Append("1. TÊN VẬT THỂ (itemName):\n");
+            promptBuilder.Append("   - BẮT BUỘC viết bằng TIẾNG VIỆT có dấu.\n");
+            promptBuilder.Append("   - Hãy quan sát kỹ để lấy tên chi tiết nhất có thể. KHÔNG bị giới hạn chỉ đồ ăn, bạn có thể nhận diện TẤT CẢ mọi thứ từ Đồ chơi, Đồ điện tử, Nội thất, Đồ gia dụng, Quần áo, Xe cộ, Văn phòng phẩm, v.v.\n");
+            promptBuilder.Append("   - MẸO QUAN TRỌNG VỚI ĐỒ ĂN: Nếu trong ảnh là một mâm đồ ăn hoặc một món ăn có nhiều thành phần (ví dụ: mẹt gồm đậu phụ, thịt luộc, chả cốm...), hãy NHẬN DIỆN TÊN TỔNG THỂ CỦA MÓN ĐÓ (ví dụ: 'Bún đậu mắm tôm thập cẩm') thay vì chỉ liệt kê lẻ tẻ một nguyên liệu.\n");
+            promptBuilder.Append("   - KHÔNG gộp số lượng và đơn vị vào tên vật thể (itemName).\n\n");
+
+            promptBuilder.Append("2. ĐƠN VỊ TÍNH VÀ SỐ LƯỢNG:\n");
+            promptBuilder.Append("   - Đếm chính xác số lượng (quantity) của vật thể.\n");
+            promptBuilder.Append("   - BẮT BUỘC cung cấp đơn vị tính (unit) bằng tiếng Việt (ví dụ: 'cái', 'chiếc', 'hộp', 'ly', 'quyển', 'bộ', v.v.).\n\n");
+
+            promptBuilder.Append("3. DANH MỤC (category):\n");
+            promptBuilder.Append($"   - DANH MỤC RIÊNG CỦA USER (ưu tiên số 1): [{userCategoryListStr}].\n");
+            promptBuilder.Append($"   - DANH MỤC HỆ THỐNG (ưu tiên số 2): [{systemCategoryListStr}].\n");
+            promptBuilder.Append("   - Nếu danh mục riêng của USER trùng hoặc tương đương với danh mục hệ thống, BẮT BUỘC ưu tiên danh mục riêng của USER.\n");
+            promptBuilder.Append("   - Hãy ưu tiên lựa chọn một danh mục phù hợp nhất từ danh sách trên nếu có thể.\n");
+            promptBuilder.Append("   - BẮT BUỘC trả về TÊN CHÍNH XÁC của danh mục như trong danh sách.\n");
+            promptBuilder.Append("   - Nếu vật thể KHÔNG THUỘC nhóm ý nghĩa của bất kỳ danh mục nào (ví dụ: đồ chơi không thể xếp vào đồ ăn), hãy mạnh dạn trả về chữ 'Khác'.\n");
+            promptBuilder.Append("   - TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ SÁNG TẠO THÊM TÊN DANH MỤC MỚI.\n\n");
+
+            if (estimatePrice)
+            {
+                promptBuilder.Append("4. ƯỚC TÍNH GIÁ (estimatedPriceVND):\n");
+                promptBuilder.Append("   - Ước tính tổng giá trị thị trường của (các) vật thể đó bằng Việt Nam Đồng (VND).\n");
+                promptBuilder.Append("   - Giá phải nhân tương ứng với số lượng đếm được.\n\n");
+            }
+
+            promptBuilder.Append("Trả về duy nhất một chuỗi JSON chuẩn có cấu trúc: {\n");
+            promptBuilder.Append("  \"itemName\": \"\",\n");
+            promptBuilder.Append("  \"quantity\": <số lượng vật thể đếm được (decimal/int)>,\n");
+            promptBuilder.Append("  \"unit\": \"<đơn vị tính>\",\n");
+            promptBuilder.Append("  \"category\": \"\"");
+            if (estimatePrice) promptBuilder.Append(",\n  \"estimatedPriceVND\": <tổng giá trị ước tính VND (long)>");
+            promptBuilder.Append("\n}. Chỉ trả về JSON, không kèm giải thích hay bất kỳ chữ nào khác. Không bọc kết quả trong markdown (```json).");
+
+            var dynamicPrompt = promptBuilder.ToString();
+
+            // 4. Xây dựng Payload theo chuẩn OpenAI API.
+            var payload = new
+            {
+                model = modelName,
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new { type = "text", text = dynamicPrompt },
+                            new 
+                            { 
+                                type = "image_url", 
+                                image_url = new { url = $"data:{contentType};base64,{base64Image}" } 
+                            }
+                        }
+                    }
+                },
+                temperature = 0.1
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            request.Headers.Add("Authorization", $"Bearer {apiKey}");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"Lỗi từ OpenAI API: {response.StatusCode} - {responseString}");
+            }
+
+            var jsonNode = JsonNode.Parse(responseString);
+            var aiTextResponse = jsonNode?["choices"]?[0]?["message"]?["content"]?.ToString();
+
+            if (string.IsNullOrEmpty(aiTextResponse))
+            {
+                throw new Exception("AI không trả về kết quả hợp lệ.");
+            }
+
+            try
+            {
+                var result = JsonSerializer.Deserialize<AiAnalyzeResult>(aiTextResponse, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? throw new Exception("Deserialize ra null.");
+
+                return new AnalyzeImageResponseDto
+                {
+                    ItemName = result.ItemName,
+                    Category = result.Category,
+                    Quantity = result.Quantity,
+                    EstimatedCalories = result.EstimatedCalories,
+                    EstimatedPriceVND = result.EstimatedPriceVND,
+                    Unit = result.Unit
+                };
+            }
+            catch (JsonException ex)
+            {
+                throw new Exception($"Lỗi Parse JSON: {ex.Message}. Chuỗi AI: {aiTextResponse}");
+            }
+        }
 
         // ═══════════════════════════════════════════════════════
         // Feature 2: Đọc Bill bằng Azure Document Intelligence

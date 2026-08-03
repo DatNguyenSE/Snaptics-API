@@ -44,6 +44,38 @@ namespace API.Controllers
             return Accepted(new { message = "Request accepted. Processing in background.", s3Key });
         }
 
+        [HttpPost("analyze-image-sync")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> AnalyzeImageSync(
+            IFormFile image,
+            [FromQuery] bool estimatePrice = true)
+        {
+            if (image == null || image.Length == 0) return BadRequest("Vui lòng chọn file ảnh.");
+            if (image.Length > 10 * 1024 * 1024) return BadRequest("Kích thước ảnh không được vượt quá 10MB.");
+
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "unknown";
+
+            byte[] imageBytes;
+            using (var ms = new MemoryStream())
+            {
+                await image.CopyToAsync(ms);
+                imageBytes = ms.ToArray();
+            }
+
+            try
+            {
+                var result = await _aiService.AnalyzeImageOpenAiAsync(imageBytes, image.ContentType, userId, estimatePrice);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi khi gọi AI: " + ex.ToString() });
+            }
+        }
+
         [HttpPost("read-bill")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
