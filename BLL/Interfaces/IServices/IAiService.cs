@@ -10,6 +10,8 @@ namespace BLL.Interfaces.IServices
         /// </summary>
         Task<AnalyzeImageResponseDto> AnalyzeImageAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true);
 
+        Task<AnalyzeImageResponseDto> AnalyzeImageOpenAiAsync(byte[] imageBytes, string contentType, string userId, bool estimatePrice = true);
+
         /// <summary>
         /// Gửi ảnh hóa đơn/bill lên Azure Document Intelligence (prebuilt-receipt).
         /// </summary>

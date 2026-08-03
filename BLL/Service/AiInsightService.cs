@@ -72,7 +72,7 @@ namespace BLL.Service
                 return;
             }
 
-            var message = $"Chi tiêu tháng này tăng {increasePercent:F0}% so với tháng trước.";
+            var message = $"📈 Chi tiêu tháng này của bạn đã tăng {increasePercent:F0}% so với tháng trước. Hãy lưu ý nhé!";
             await _notificationService.CreateAsync(
                 new NotificationDto
                 {
@@ -127,7 +127,7 @@ namespace BLL.Service
                     return;
                 }
 
-                var message = "Bạn đã vượt ngân sách tháng này.";
+                var message = "⚠️ Bạn đã vượt quá ngân sách tháng này rồi. Hãy cẩn thận nha!";
 
                 await _notificationService.CreateAsync(
                     new NotificationDto
@@ -152,7 +152,7 @@ namespace BLL.Service
                     return;
                 }
 
-                var message = $"Bạn đã sử dụng {usagePercent:F0}% ngân sách tháng này.";
+                var message = $"⚠️ Bạn đã sử dụng tới {usagePercent:F0}% ngân sách tháng này.";
 
                 await _notificationService.CreateAsync(
                     new NotificationDto
@@ -213,12 +213,12 @@ namespace BLL.Service
                 return;
 
             var message =
-                $"{biggestCategory.Category} chiếm {(percent * 100):F0}% tổng chi tiêu tháng này.";
+                $"📊 Danh mục '{biggestCategory.Category}' đang chiếm tới {(percent * 100):F0}% tổng chi tiêu tháng này. Bạn hãy chú ý cân đối ngân sách nhé!";
 
             if (await HasNotificationTodayAsync(
                     userId,
                     NotificationType.Other,
-                    "chiếm"))
+                    "chiếm tới"))
             {
                 return;
             }
@@ -239,7 +239,7 @@ namespace BLL.Service
             if (items == null || !items.Any()) return;
 
             // Chặn spam notification
-            if (await HasNotificationTodayAsync(userId, NotificationType.Other, "đồ đạc")) return;
+            if (await HasNotificationTodayAsync(userId, NotificationType.Other, "Gợi ý đồ đạc:")) return;
 
             var sb = new System.Text.StringBuilder();
             foreach (var item in items.Where(x => x.IsReviewed))
@@ -249,30 +249,30 @@ namespace BLL.Service
 
             if (sb.Length == 0) return; // Chưa đánh giá cái nào
 
-            var systemPrompt = @"Bạn là trợ lý AI phân tích đồ đạc của Snaptics. 
-Dưới đây là danh sách đồ đạc của người dùng:
+            var systemPrompt = @"Bạn là chuyên gia tư vấn mua sắm thông minh của Snaptics. 
+Dưới đây là danh sách các món đồ người dùng đã mua và mức độ sử dụng của họ:
 " + sb.ToString() + @"
 Nhiệm vụ: 
-1. Tìm những đồ 'Frequent' (Dùng thường xuyên), hãy gợi ý họ mua lại hoặc canh săn sale.
-2. Tìm những đồ 'Unused' (Không dùng nữa) hoặc 'Seldom' (Ít dùng), tính tổng lãng phí (tiền) và khuyên họ mang đi thanh lý.
-Viết RA DUY NHẤT MỘT CÂU THÔNG BÁO NGẮN GỌN (dưới 150 ký tự) ghép chung 2 ý trên (nếu có). 
-Lưu ý: Bắt buộc trong câu phải có từ 'đồ đạc' để hệ thống nhận diện (VD: Đồ đạc của bạn...).
-Nếu không có gì đáng nhắc, hoặc không tính toán được lãng phí đáng kể, hãy trả về chữ 'EMPTY'.";
+1. Phân tích các món đồ có mức độ sử dụng 'Frequent' (Dùng thường xuyên).
+2. Dựa vào đó, gợi ý NGẮN GỌN 1-2 món đồ liên quan hoặc phụ kiện hữu ích mà người dùng có thể mua thêm để nâng cao trải nghiệm (Ví dụ: có điện thoại -> gợi ý ốp lưng, sạc dự phòng).
+3. KHÔNG chào hỏi, KHÔNG giải thích lằng nhằng. CHỈ viết DUY NHẤT một câu gợi ý thân thiện (khoảng 15 - 25 từ).
+4. Nếu danh sách không có đồ 'Frequent' hoặc không có gợi ý nào hợp lý, HÃY TRẢ VỀ ĐÚNG 1 CHỮ: EMPTY";
 
             try
             {
-                var message = await _aiService.GenerateTextAsync(systemPrompt, "Hãy viết thông báo");
+                var message = await _aiService.GenerateTextAsync(systemPrompt, "Hãy viết câu gợi ý mua sắm:");
                 message = message?.Trim();
 
                 if (!string.IsNullOrEmpty(message) && message != "EMPTY" && !message.StartsWith("EMPTY"))
                 {
+                    var finalMessage = $"📦 Gợi ý đồ đạc: {message}";
                     await _notificationService.CreateAsync(
                         new NotificationDto
                         {
                             UserId = userId,
-                            Message = message,
+                            Message = finalMessage,
                             Type = NotificationType.Other,
-                            CreatedAt = DateTime.UtcNow
+                            CreatedAt = DateTime.UtcNow.AddHours(7)
                         });
                 }
             }

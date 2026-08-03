@@ -428,21 +428,18 @@ namespace BLL.Service
 
                 await _uow.Complete();
 
-                // Tìm các liên kết BudgetIncomeSource của ví cũ
-                var allBudgetIncomeSources = await _uow.BudgetIncomeSourceRepository.GetAllAsync();
-                var oldBudgetIncomeSources = allBudgetIncomeSources.Where(bis => bis.BudgetId == oldBudget.Id).ToList();
+                // Tìm các lịch sử nạp tiền của ví cũ để quét nguồn thu
+                var oldIncomeHistories = await _uow.IncomeHistoryRepository.FindAsync(h => h.BudgetId == oldBudget.Id && h.IncomeSourceId != null);
+                var uniqueSourceIds = oldIncomeHistories.Select(h => h.IncomeSourceId.Value).Distinct().ToList();
 
                 var allIncomeSources = await _uow.IncomeSourceRepository.GetAllAsync();
                 
                 // Lọc ra các nguồn thu thuộc về user này, đang active và LÀ ĐỊNH KỲ
-                var recurringSources = oldBudgetIncomeSources
-                    .Select(bis => new { 
-                        IncomeSource = allIncomeSources.FirstOrDefault(s => s.Id == bis.IncomeSourceId)
-                    })
-                    .Where(x => x.IncomeSource != null && 
-                                x.IncomeSource.UserId == oldBudget.UserId && 
-                                x.IncomeSource.IsActive == true && 
-                                x.IncomeSource.IsRecurring == true)
+                var recurringSources = allIncomeSources
+                    .Where(s => uniqueSourceIds.Contains(s.Id) && 
+                                s.UserId == oldBudget.UserId && 
+                                s.IsActive && 
+                                s.IsRecurring)
                     .ToList();
 
                 if (recurringSources.Any())
@@ -453,10 +450,9 @@ namespace BLL.Service
                     newBudget.CurrentAmount = 0;
                     newBudget.Amount = 0; // Reset luôn hạn mức để cộng lại từ đầu
 
-                    foreach (var item in recurringSources)
+                    foreach (var source in recurringSources)
                     {
-                        var source = item.IncomeSource;
-                        // SỬA LỖI theo đúng ý bạn: Lấy Amount mới nhất trực tiếp từ IncomeSource
+                        // Lấy Amount mới nhất trực tiếp từ IncomeSource
                         var currentIncomeAmount = source.Amount; 
                         
                         // 1. Tạo liên kết BudgetIncomeSource cho ví mới
