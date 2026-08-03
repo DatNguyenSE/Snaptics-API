@@ -156,6 +156,7 @@ builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IMissingPriceJob, MissingPriceJob>();
 
 builder.Services.AddScoped<IItemReviewJobService, ItemReviewJobService>();
+builder.Services.AddScoped<IMonthlyAiInsightJobService, MonthlyAiInsightJobService>();
             builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
@@ -204,6 +205,13 @@ using (var scope = app.Services.CreateScope())
         "remind-item-review-daily",
         job => job.ScanAndSendNotificationAsync(30),
         "0 20 * * *"
+    );
+
+    // Chạy mỗi 30 ngày vào ngày 1 hàng tháng lúc 00:00
+    recurringJobManager.AddOrUpdate<IMonthlyAiInsightJobService>(
+        "monthly-ai-insight",
+        job => job.GenerateMonthlyInsightsAsync(),
+        "0 0 1 * *" 
     );
 
     recurringJobManager.AddOrUpdate<INotificationService>(

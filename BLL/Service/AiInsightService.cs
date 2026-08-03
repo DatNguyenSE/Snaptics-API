@@ -14,7 +14,10 @@ namespace BLL.Service
             await CheckBudgetWarning(userId);
 
             await CheckCategoryInsight(userId);
+        }
 
+        public async Task GenerateInventoryInsightAsync(string userId)
+        {
             await CheckInventoryInsight(userId);
         }
 

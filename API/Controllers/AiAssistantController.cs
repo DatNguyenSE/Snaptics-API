@@ -1,4 +1,4 @@
-﻿using API.Extensions;
+using API.Extensions;
 using BLL.Dtos.AiAssistantDto;
 using BLL.Interfaces.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +31,19 @@ namespace API.Controllers
             return Ok(new
             {
                 Message = "AI insight generated successfully."
+            });
+        }
+
+        [HttpPost("inventory-insight")]
+        public async Task<IActionResult> GenerateInventoryInsight([FromServices] IAiInsightService aiInsightService)
+        {
+            var userId = User.GetUserId();
+
+            await aiInsightService.GenerateInventoryInsightAsync(userId);
+
+            return Ok(new
+            {
+                Message = "AI inventory insight generated successfully."
             });
         }
     }

@@ -124,4 +124,39 @@ public class HangfireConfigController : ControllerBase
         await notificationService.CleanUpOldNotificationsAsync();
         return Ok(new { message = "Old notifications cleanup executed successfully." });
     }
+
+    // ==========================================
+    // 4. BÁO CÁO TỔNG KẾT THÁNG BẰNG AI (MONTHLY AI INSIGHT)
+    // ==========================================
+
+    [HttpPost("monthly-ai-insight")]
+    public IActionResult UpdateMonthlyAiInsightSchedule([FromBody] UpdateHangfireScheduleRequest request)
+    {
+        if (request.Hour < 0 || request.Hour > 23)
+            return BadRequest("Hour must be between 0 and 23.");
+
+        if (request.Minute < 0 || request.Minute > 59)
+            return BadRequest("Minute must be between 0 and 59.");
+
+        // Chạy mỗi tháng một lần vào giờ/phút được chỉ định của ngày mùng 1
+        var cron = $"{request.Minute} {request.Hour} 1 * *";
+
+        _recurringJobManager.AddOrUpdate<IMonthlyAiInsightJobService>(
+            "monthly-ai-insight",
+            job => job.GenerateMonthlyInsightsAsync(),
+            cron);
+
+        return Ok(new
+        {
+            message = "Monthly AI insight schedule updated successfully.",
+            cron
+        });
+    }
+
+    [HttpPost("trigger/monthly-ai-insight")]
+    public async Task<IActionResult> TriggerMonthlyAiInsightNow([FromServices] IMonthlyAiInsightJobService monthlyAiService)
+    {
+        await monthlyAiService.GenerateMonthlyInsightsAsync();
+        return Ok(new { message = "Monthly AI insight check executed successfully for all users." });
+    }
 }
