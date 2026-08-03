@@ -67,13 +67,24 @@ namespace API.Controllers
 
             try
             {
-                var result = await _aiService.AnalyzeImageOpenAiAsync(imageBytes, image.ContentType, userId, estimatePrice);
+                var result = await _aiService.AnalyzeImageAsync(imageBytes, image.ContentType, userId, estimatePrice);
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Lỗi khi gọi AI: " + ex.ToString() });
             }
+        }
+
+        [HttpGet("list-models")]
+        public async Task<IActionResult> ListModels([FromServices] IConfiguration config, [FromServices] IHttpClientFactory httpClientFactory)
+        {
+            var apiKey = config["AiSettings:GeminiApiKey"];
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
+            var client = httpClientFactory.CreateClient();
+            var response = await client.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+            return Ok(content);
         }
 
         [HttpPost("read-bill")]
