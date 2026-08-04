@@ -7,7 +7,7 @@ namespace BLL.Interfaces.IServices
 {
     public interface IAiInsightService
     {
-        Task GenerateInsightsAsync(string userId);
-        Task GenerateInventoryInsightAsync(string userId);
+        Task<int> GenerateInsightsAsync(string userId);
+        Task<int> GenerateInventoryInsightAsync(string userId);
     }
 }

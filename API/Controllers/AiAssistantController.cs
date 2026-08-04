@@ -27,11 +27,12 @@ namespace API.Controllers
         {
             var userId = User.GetUserId();
 
-            await aiInsightService.GenerateInsightsAsync(userId);
+            var count = await aiInsightService.GenerateInsightsAsync(userId);
 
             return Ok(new
             {
-                Message = "AI insight generated successfully."
+                Message = "AI insight generated successfully.",
+                NotificationsCreated = count
             });
         }
 
@@ -40,11 +41,12 @@ namespace API.Controllers
         {
             var userId = User.GetUserId();
 
-            await aiInsightService.GenerateInventoryInsightAsync(userId);
+            var count = await aiInsightService.GenerateInventoryInsightAsync(userId);
 
             return Ok(new
             {
-                Message = "AI inventory insight generated successfully."
+                Message = "AI inventory insight generated successfully.",
+                NotificationsCreated = count
             });
         }
     }

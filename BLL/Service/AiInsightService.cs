@@ -7,21 +7,21 @@ namespace BLL.Service
 {
     public class AiInsightService(IUnitOfWork _uow, INotificationService _notificationService, ISnsService _snsService, IAiService _aiService) : IAiInsightService
     {
-        public async Task GenerateInsightsAsync(string userId)
+        public async Task<int> GenerateInsightsAsync(string userId)
         {
-            await CheckSpendingSpike(userId);
-
-            await CheckBudgetWarning(userId);
-
-            await CheckCategoryInsight(userId);
+            int count = 0;
+            count += await CheckSpendingSpike(userId);
+            count += await CheckBudgetWarning(userId);
+            count += await CheckCategoryInsight(userId);
+            return count;
         }
 
-        public async Task GenerateInventoryInsightAsync(string userId)
+        public async Task<int> GenerateInventoryInsightAsync(string userId)
         {
-            await CheckInventoryInsight(userId);
+            return await CheckInventoryInsight(userId);
         }
 
-        private async Task CheckSpendingSpike(string userId)
+        private async Task<int> CheckSpendingSpike(string userId)
         {
             var today = DateTime.UtcNow.AddHours(7);
 
@@ -55,10 +55,10 @@ namespace BLL.Service
                 previousMonthTransactions.Sum(x => x.TotalAmount);
 
             if (previousSpent <= 0)
-                return;
+                return 0;
 
             if (currentSpent <= previousSpent * 1.3m)
-                return;
+                return 0;
 
             var increasePercent =
                 ((currentSpent - previousSpent)
@@ -69,7 +69,7 @@ namespace BLL.Service
                     NotificationType.Other,
                     "so với tháng trước"))
             {
-                return;
+                return 0;
             }
 
             var message = $"📈 Chi tiêu tháng này của bạn đã tăng {increasePercent:F0}% so với tháng trước. Hãy lưu ý nhé!";
@@ -85,9 +85,11 @@ namespace BLL.Service
             await _snsService.PublishAsync(
                 "Snaptics Spending Alert",
                 message);
+                
+            return 1;
         }
 
-        private async Task CheckBudgetWarning(string userId)
+        private async Task<int> CheckBudgetWarning(string userId)
         {
             var today = DateTime.UtcNow.AddHours(7);
 
@@ -112,7 +114,7 @@ namespace BLL.Service
                 .FirstOrDefault(x => x.IsActive);
 
             if (budget == null || budget.Amount <= 0)
-                return;
+                return 0;
 
             var usagePercent =
                 (totalSpent / budget.Amount) * 100;
@@ -124,7 +126,7 @@ namespace BLL.Service
                         NotificationType.Other,
                         "vượt ngân sách"))
                 {
-                    return;
+                    return 0;
                 }
 
                 var message = "⚠️ Bạn đã vượt quá ngân sách tháng này rồi. Hãy cẩn thận nha!";
@@ -141,6 +143,8 @@ namespace BLL.Service
                 await _snsService.PublishAsync(
                     "Snaptics Budget Warning",
                     message);
+                    
+                return 1;
             }
             else if (usagePercent >= 80)
             {
@@ -149,7 +153,7 @@ namespace BLL.Service
                         NotificationType.Other,
                         "sử dụng"))
                 {
-                    return;
+                    return 0;
                 }
 
                 var message = $"⚠️ Bạn đã sử dụng tới {usagePercent:F0}% ngân sách tháng này.";
@@ -166,10 +170,13 @@ namespace BLL.Service
                 await _snsService.PublishAsync(
                     "Snaptics Budget Warning",
                     message);
+                    
+                return 1;
             }
+            return 0;
         }
 
-        private async Task CheckCategoryInsight(string userId)
+        private async Task<int> CheckCategoryInsight(string userId)
         {
             var today = DateTime.UtcNow.AddHours(7);
 
@@ -190,7 +197,7 @@ namespace BLL.Service
                 monthlyTransactions.Sum(t => t.TotalAmount);
 
             if (totalSpent <= 0)
-                return;
+                return 0;
 
             var biggestCategory = monthlyTransactions
                 .SelectMany(t => t.TransactionDetails)
@@ -204,13 +211,13 @@ namespace BLL.Service
                 .FirstOrDefault();
 
             if (biggestCategory == null)
-                return;
+                return 0;
 
             var percent =
                 biggestCategory.Total / totalSpent;
 
             if (percent < 0.5m)
-                return;
+                return 0;
 
             var message =
                 $"📊 Danh mục '{biggestCategory.Category}' đang chiếm tới {(percent * 100):F0}% tổng chi tiêu tháng này. Bạn hãy chú ý cân đối ngân sách nhé!";
@@ -220,7 +227,7 @@ namespace BLL.Service
                     NotificationType.Other,
                     "chiếm tới"))
             {
-                return;
+                return 0;
             }
 
             await _notificationService.CreateAsync(
@@ -231,15 +238,17 @@ namespace BLL.Service
                     Type = NotificationType.Other,
                     CreatedAt = DateTime.UtcNow.AddHours(7)
                 });
+                
+            return 1;
         }
 
-        private async Task CheckInventoryInsight(string userId)
+        private async Task<int> CheckInventoryInsight(string userId)
         {
             var items = await _uow.ItemInventoryRepository.GetByUserIdAsync(userId);
-            if (items == null || !items.Any()) return;
+            if (items == null || !items.Any()) return 0;
 
             // Chặn spam notification
-            if (await HasNotificationTodayAsync(userId, NotificationType.Other, "Gợi ý đồ đạc:")) return;
+            if (await HasNotificationTodayAsync(userId, NotificationType.Other, "Gợi ý đồ đạc:")) return 0;
 
             var sb = new System.Text.StringBuilder();
             foreach (var item in items.Where(x => x.IsReviewed))
@@ -247,19 +256,21 @@ namespace BLL.Service
                 sb.AppendLine($"- {item.TransactionDetail?.ItemName} (Giá: {item.TransactionDetail?.Price:N0}đ, Mức độ sử dụng: {item.UsageStatus})");
             }
 
-            if (sb.Length == 0) return; // Chưa đánh giá cái nào
+            if (sb.Length == 0) return 0; // Chưa đánh giá cái nào
 
             var systemPrompt = @"Bạn là chuyên gia tư vấn mua sắm và quản lý đồ đạc thông minh của Snaptics. 
 Dưới đây là danh sách các món đồ người dùng đã mua và mức độ sử dụng của họ:
 " + sb.ToString() + @"
 Nhiệm vụ: 
-1. Đối với đồ 'Frequent': Gợi ý 1 phụ kiện nâng cấp trải nghiệm. Văn phong THU HÚT, NĂNG ĐỘNG kiểu Marketing (dùng emoji 🛒, ✨, 🔥). BẮT BUỘC chèn 1 link tìm kiếm (hãy chọn ngẫu nhiên 1 trong 3 nền tảng Shopee, Lazada hoặc TikTok Shop):
+1. Đối với đồ có mức độ sử dụng là 'Frequent' (luôn dùng): Gợi ý thêm 1 sản phẩm cùng thể loại. Bạn phải chèn 1 câu tin nhắn đúng định dạng sau: ""Hôm nay sản phẩm [Tên sản phẩm gợi ý] giảm giá sâu bạn có muốn xem không? [bấm vào đây để truy cập link]([link])""
+   Trong đó [link] là một trong 3 nền tảng sau (chọn ngẫu nhiên):
    - Shopee: https://shopee.vn/search?keyword=<tên_món_gợi_ý>
    - Lazada: https://www.lazada.vn/catalog/?q=<tên_món_gợi_ý>
    - TikTok Shop: https://www.tiktok.com/search?q=<tên_món_gợi_ý>
    (Nhớ thay khoảng trắng bằng %20 trong link).
+   Ví dụ định dạng chuẩn: Hôm nay sản phẩm Ốp lưng iPhone 15 giảm giá sâu bạn có muốn xem không? [bấm vào đây để truy cập link](https://shopee.vn/search?keyword=%E1%BB%90p%20l%C6%B0ng%20iPhone%2015)
 2. Đối với đồ 'Unused' hoặc 'Seldom': Khuyên họ thanh lý (pass đồ), quyên góp để dọn dẹp không gian và 'thu hồi vốn' 💸.
-3. Viết 1 đoạn văn (khoảng 3-4 câu) lôi cuốn, đánh trúng tâm lý thích mua sắm hoặc tiết kiệm của người dùng. KHÔNG chào hỏi vòng vo.
+3. Viết 1 đoạn văn lôi cuốn, đánh trúng tâm lý thích mua sắm hoặc tiết kiệm của người dùng. KHÔNG chào hỏi vòng vo.
 4. Nếu danh sách không có đồ nào phù hợp để gợi ý, HÃY TRẢ VỀ ĐÚNG 1 CHỮ: EMPTY";
 
             try
@@ -278,12 +289,16 @@ Nhiệm vụ:
                             Type = NotificationType.Other,
                             CreatedAt = DateTime.UtcNow.AddHours(7)
                         });
+                        
+                    return 1;
                 }
             }
             catch
             {
                 // Ignore AI errors in background
             }
+            
+            return 0;
         }
 
         private async Task<bool> HasNotificationTodayAsync(string userId, NotificationType type, string keyword)
