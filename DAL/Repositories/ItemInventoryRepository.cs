@@ -39,5 +39,13 @@ namespace DAL.Repositories
                 .Where(x => x.UserId == userId && !x.IsReviewed)
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<ItemInventory>> GetAllWithDetailsAsync()
+        {
+            return await _dbSet
+                .Include(x => x.TransactionDetail)
+                    .ThenInclude(td => td.Category)
+                .ToListAsync();
+        }
     }
 }

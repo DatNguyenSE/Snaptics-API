@@ -16,9 +16,100 @@ namespace BLL.Service
             return count;
         }
 
-        public async Task<int> GenerateInventoryInsightAsync(string userId)
+        public async Task<byte[]> ExportInventoryInsightCsvAsync()
         {
-            return await CheckInventoryInsight(userId);
+            var allItems = await _uow.ItemInventoryRepository.GetAllWithDetailsAsync();
+
+            var filteredItems = allItems
+                .Where(x => x.UsageStatus == UsageStatusType.Frequent || x.UsageStatus == UsageStatusType.Occasionally)
+                .ToList();
+
+            if (!filteredItems.Any())
+            {
+                return new byte[] { 0xEF, 0xBB, 0xBF }; // Empty CSV with BOM
+            }
+
+            var groupedOriginals = filteredItems
+                .Where(x => x.TransactionDetail != null && x.TransactionDetail.Category != null)
+                .GroupBy(x => new { x.TransactionDetail.ItemName, CategoryName = x.TransactionDetail.Category.Name })
+                .Select(g => new
+                {
+                    ItemName = g.Key.ItemName,
+                    CategoryName = g.Key.CategoryName,
+                    Count = g.Count()
+                })
+                .ToList();
+
+            var uniqueNames = groupedOriginals.Select(x => x.ItemName).Distinct().ToList();
+
+            var systemPrompt = @"Bạn là trợ lý dữ liệu. Dưới đây là danh sách tên các món đồ. Hãy gom nhóm các tên tương tự nhau thành 1 TÊN CHUNG DUY NHẤT (Generic Name). Ví dụ: 'chuột gaming', 'chuột không dây' -> 'chuột máy tính'. Trả về MỘT mảng JSON duy nhất chứa đối tượng có 'OriginalName' và 'GenericName'. Không có văn bản nào khác ngoài JSON.
+            [
+              { ""OriginalName"": ""..."", ""GenericName"": ""..."" }
+            ]
+            
+            Danh sách món đồ:
+            " + string.Join(", ", uniqueNames);
+
+            var aiResponse = await _aiService.GenerateTextAsync(systemPrompt, "Hãy trả về JSON.");
+            
+            var genericNameMappings = new Dictionary<string, string>();
+            try
+            {
+                aiResponse = aiResponse?.Trim();
+                if (!string.IsNullOrEmpty(aiResponse))
+                {
+                    if (aiResponse.StartsWith("```json")) aiResponse = aiResponse.Substring(7);
+                    if (aiResponse.EndsWith("```")) aiResponse = aiResponse.Substring(0, aiResponse.Length - 3);
+                    aiResponse = aiResponse.Trim();
+
+                    var mappings = System.Text.Json.JsonSerializer.Deserialize<List<BLL.Dtos.AiAssistantDto.AiGenericNameDto>>(aiResponse);
+                    if (mappings != null)
+                    {
+                        foreach (var m in mappings)
+                        {
+                            if (!string.IsNullOrEmpty(m.OriginalName) && !genericNameMappings.ContainsKey(m.OriginalName))
+                            {
+                                genericNameMappings[m.OriginalName] = m.GenericName ?? m.OriginalName;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback: If AI fails, we just map everything to its original name
+            }
+
+            var finalGrouped = groupedOriginals
+                .Select(x => new
+                {
+                    GenericName = genericNameMappings.ContainsKey(x.ItemName) ? genericNameMappings[x.ItemName] : x.ItemName,
+                    CategoryName = x.CategoryName,
+                    Count = x.Count
+                })
+                .GroupBy(x => new { x.GenericName, x.CategoryName })
+                .Select(g => new
+                {
+                    CategoryName = g.Key.CategoryName,
+                    GenericName = g.Key.GenericName,
+                    TotalCount = g.Sum(x => x.Count)
+                })
+                .OrderBy(x => x.CategoryName)
+                .ThenByDescending(x => x.TotalCount)
+                .ToList();
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Category,Generic Name,Count");
+            foreach (var item in finalGrouped)
+            {
+                var safeCategory = item.CategoryName?.Replace("\"", "\"\"") ?? "";
+                var safeGenericName = item.GenericName?.Replace("\"", "\"\"") ?? "";
+                sb.AppendLine($"\"{safeCategory}\",\"{safeGenericName}\",{item.TotalCount}");
+            }
+
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+            return bom.Concat(csvBytes).ToArray();
         }
 
         private async Task<int> CheckSpendingSpike(string userId)
@@ -242,64 +333,7 @@ namespace BLL.Service
             return 1;
         }
 
-        private async Task<int> CheckInventoryInsight(string userId)
-        {
-            var items = await _uow.ItemInventoryRepository.GetByUserIdAsync(userId);
-            if (items == null || !items.Any()) return 0;
 
-            // Chặn spam notification
-            if (await HasNotificationTodayAsync(userId, NotificationType.Other, "Gợi ý đồ đạc:")) return 0;
-
-            var sb = new System.Text.StringBuilder();
-            foreach (var item in items.Where(x => x.IsReviewed))
-            {
-                sb.AppendLine($"- {item.TransactionDetail?.ItemName} (Giá: {item.TransactionDetail?.Price:N0}đ, Mức độ sử dụng: {item.UsageStatus})");
-            }
-
-            if (sb.Length == 0) return 0; // Chưa đánh giá cái nào
-
-            var systemPrompt = @"Bạn là chuyên gia tư vấn mua sắm và quản lý đồ đạc thông minh của Snaptics. 
-Dưới đây là danh sách các món đồ người dùng đã mua và mức độ sử dụng của họ:
-" + sb.ToString() + @"
-Nhiệm vụ: 
-1. Đối với đồ có mức độ sử dụng là 'Frequent' (luôn dùng): Gợi ý thêm 1 sản phẩm cùng thể loại. Bạn phải chèn 1 câu tin nhắn đúng định dạng sau: ""Hôm nay sản phẩm [Tên sản phẩm gợi ý] giảm giá sâu bạn có muốn xem không? [bấm vào đây để truy cập link]([link])""
-   Trong đó [link] là một trong 3 nền tảng sau (chọn ngẫu nhiên):
-   - Shopee: https://shopee.vn/search?keyword=<tên_món_gợi_ý>
-   - Lazada: https://www.lazada.vn/catalog/?q=<tên_món_gợi_ý>
-   - TikTok Shop: https://www.tiktok.com/search?q=<tên_món_gợi_ý>
-   (Nhớ thay khoảng trắng bằng %20 trong link).
-   Ví dụ định dạng chuẩn: Hôm nay sản phẩm Ốp lưng iPhone 15 giảm giá sâu bạn có muốn xem không? [bấm vào đây để truy cập link](https://shopee.vn/search?keyword=%E1%BB%90p%20l%C6%B0ng%20iPhone%2015)
-2. Đối với đồ 'Unused' hoặc 'Seldom': Khuyên họ thanh lý (pass đồ), quyên góp để dọn dẹp không gian và 'thu hồi vốn' 💸.
-3. Viết 1 đoạn văn lôi cuốn, đánh trúng tâm lý thích mua sắm hoặc tiết kiệm của người dùng. KHÔNG chào hỏi vòng vo.
-4. Nếu danh sách không có đồ nào phù hợp để gợi ý, HÃY TRẢ VỀ ĐÚNG 1 CHỮ: EMPTY";
-
-            try
-            {
-                var message = await _aiService.GenerateTextAsync(systemPrompt, "Hãy viết câu gợi ý mua sắm:");
-                message = message?.Trim();
-
-                if (!string.IsNullOrEmpty(message) && message != "EMPTY" && !message.StartsWith("EMPTY"))
-                {
-                    var finalMessage = $"📦 Gợi ý đồ đạc: {message}";
-                    await _notificationService.CreateAsync(
-                        new NotificationDto
-                        {
-                            UserId = userId,
-                            Message = finalMessage,
-                            Type = NotificationType.Other,
-                            CreatedAt = DateTime.UtcNow.AddHours(7)
-                        });
-                        
-                    return 1;
-                }
-            }
-            catch
-            {
-                // Ignore AI errors in background
-            }
-            
-            return 0;
-        }
 
         private async Task<bool> HasNotificationTodayAsync(string userId, NotificationType type, string keyword)
         {

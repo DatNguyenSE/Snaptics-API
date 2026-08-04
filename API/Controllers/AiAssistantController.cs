@@ -36,18 +36,11 @@ namespace API.Controllers
             });
         }
 
-        [HttpPost("inventory-insight")]
-        public async Task<IActionResult> GenerateInventoryInsight([FromServices] IAiInsightService aiInsightService)
+        [HttpGet("inventory-insight-export")]
+        public async Task<IActionResult> ExportInventoryInsight([FromServices] IAiInsightService aiInsightService)
         {
-            var userId = User.GetUserId();
-
-            var count = await aiInsightService.GenerateInventoryInsightAsync(userId);
-
-            return Ok(new
-            {
-                Message = "AI inventory insight generated successfully.",
-                NotificationsCreated = count
-            });
+            var bytes = await aiInsightService.ExportInventoryInsightCsvAsync();
+            return File(bytes, "text/csv", "BaoCaoDoDac.csv");
         }
     }
 }

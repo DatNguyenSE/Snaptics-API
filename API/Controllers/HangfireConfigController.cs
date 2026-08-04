@@ -160,17 +160,6 @@ public class HangfireConfigController : ControllerBase
         return Ok(new { message = "Monthly AI insight check executed successfully for all users." });
     }
 
-    [HttpPost("trigger/inventory-insight")]
-    public async Task<IActionResult> TriggerInventoryInsightNow([FromServices] IAiInsightService aiInsightService, [FromServices] Microsoft.AspNetCore.Identity.UserManager<DAL.Entities.AppUser> userManager)
-    {
-        var users = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(userManager.Users);
-        int count = 0;
-        foreach (var user in users)
-        {
-            count += await aiInsightService.GenerateInventoryInsightAsync(user.Id);
-        }
-        return Ok(new { message = $"Inventory insight check executed successfully. {count} notifications sent." });
-    }
 
     [HttpPost("trigger/budget-insight")]
     public async Task<IActionResult> TriggerBudgetInsightNow([FromServices] IAiInsightService aiInsightService, [FromServices] Microsoft.AspNetCore.Identity.UserManager<DAL.Entities.AppUser> userManager)
