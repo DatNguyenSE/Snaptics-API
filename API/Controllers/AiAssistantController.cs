@@ -7,9 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace API.Controllers
 {
     [Authorize]
+    [ApiController]
     [Route("[controller]")]
     public class AiAssistantController(
-        IAiAssistantService _aiAssistantService) : Controller
+        IAiAssistantService _aiAssistantService) : ControllerBase
     {
         [HttpPost("ask")]
         public async Task<ActionResult<AskAiResponseDto>> Ask([FromBody] AskAiRequestDto request)
