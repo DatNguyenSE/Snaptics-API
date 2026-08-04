@@ -895,8 +895,8 @@ namespace BLL.Service
                 },
                 generationConfig = new
                 {
-                    maxOutputTokens = 200,
-                    temperature = 0.5
+                    maxOutputTokens = 400,
+                    temperature = 0.6
                 }
             };
 

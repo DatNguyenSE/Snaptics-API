@@ -249,14 +249,18 @@ namespace BLL.Service
 
             if (sb.Length == 0) return; // Chưa đánh giá cái nào
 
-            var systemPrompt = @"Bạn là chuyên gia tư vấn mua sắm thông minh của Snaptics. 
+            var systemPrompt = @"Bạn là chuyên gia tư vấn mua sắm và quản lý đồ đạc thông minh của Snaptics. 
 Dưới đây là danh sách các món đồ người dùng đã mua và mức độ sử dụng của họ:
 " + sb.ToString() + @"
 Nhiệm vụ: 
-1. Phân tích các món đồ có mức độ sử dụng 'Frequent' (Dùng thường xuyên).
-2. Dựa vào đó, gợi ý NGẮN GỌN 1-2 món đồ liên quan hoặc phụ kiện hữu ích mà người dùng có thể mua thêm để nâng cao trải nghiệm (Ví dụ: có điện thoại -> gợi ý ốp lưng, sạc dự phòng).
-3. KHÔNG chào hỏi, KHÔNG giải thích lằng nhằng. CHỈ viết DUY NHẤT một câu gợi ý thân thiện (khoảng 15 - 25 từ).
-4. Nếu danh sách không có đồ 'Frequent' hoặc không có gợi ý nào hợp lý, HÃY TRẢ VỀ ĐÚNG 1 CHỮ: EMPTY";
+1. Đối với đồ 'Frequent': Gợi ý 1 phụ kiện nâng cấp trải nghiệm. Văn phong THU HÚT, NĂNG ĐỘNG kiểu Marketing (dùng emoji 🛒, ✨, 🔥). BẮT BUỘC chèn 1 link tìm kiếm (hãy chọn ngẫu nhiên 1 trong 3 nền tảng Shopee, Lazada hoặc TikTok Shop):
+   - Shopee: https://shopee.vn/search?keyword=<tên_món_gợi_ý>
+   - Lazada: https://www.lazada.vn/catalog/?q=<tên_món_gợi_ý>
+   - TikTok Shop: https://www.tiktok.com/search?q=<tên_món_gợi_ý>
+   (Nhớ thay khoảng trắng bằng %20 trong link).
+2. Đối với đồ 'Unused' hoặc 'Seldom': Khuyên họ thanh lý (pass đồ), quyên góp để dọn dẹp không gian và 'thu hồi vốn' 💸.
+3. Viết 1 đoạn văn (khoảng 3-4 câu) lôi cuốn, đánh trúng tâm lý thích mua sắm hoặc tiết kiệm của người dùng. KHÔNG chào hỏi vòng vo.
+4. Nếu danh sách không có đồ nào phù hợp để gợi ý, HÃY TRẢ VỀ ĐÚNG 1 CHỮ: EMPTY";
 
             try
             {
