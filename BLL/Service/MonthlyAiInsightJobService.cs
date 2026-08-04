@@ -15,8 +15,6 @@ namespace BLL.Service
             {
                 // Gọi các phân tích tài chính chung
                 await _aiInsightService.GenerateInsightsAsync(user.Id);
-                // Gọi phân tích gợi ý thanh lý đồ đạc
-                await _aiInsightService.GenerateInventoryInsightAsync(user.Id);
             }
         }
     }
