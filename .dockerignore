@@ -1,0 +1,36 @@
+# Version control and local tooling
+.git
+.github
+.vs
+.vscode
+.idea
+.antigravityrules
+
+# Host build output and caches
+**/bin
+**/obj
+**/node_modules
+**/TestResults
+**/logs
+**/Logs
+**/*.log
+**/*.user
+**/*.suo
+
+# Local configuration and credentials; production placeholders stay included
+**/.env
+**/.env.*
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.*.local.json
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+
+# Local requests, runtime state, and personal notes
+API/API.http
+API/maintenance.json
+architecture-diagram-analysis.md
+general-architecture-review.md
+walkthrough.md

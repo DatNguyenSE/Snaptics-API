@@ -485,3 +485,24 @@ $RECYCLE.BIN/
 
 API/appsettings.Development.json
 .antigravityrules
+
+# Local request scratchpad (currently the unused weatherforecast template)
+/API/API.http
+
+# Runtime maintenance state; MaintenanceService creates defaults when missing
+/API/maintenance.json
+
+# Personal analysis notes (keep locally, not in the public source tree)
+/architecture-diagram-analysis.md
+/general-architecture-review.md
+/walkthrough.md
+
+# Environment overrides and local credentials
+.env.*
+!.env.example
+!.env.sample
+**/appsettings.Local.json
+**/appsettings.*.local.json
+*.pem
+*.key
+*.p12
