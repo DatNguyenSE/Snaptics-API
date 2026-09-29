@@ -182,13 +182,17 @@ For the Angular interface, follow the [client repository](https://github.com/Dat
 
 ### Backend: GitHub Actions → ECR → ECS Fargate
 
-The [deployment workflow](.github/workflows/deploy.yml) runs on pushes to `main` and `master`:
+The [deployment workflow](.github/workflows/deploy.yml) runs **manually only**, using `workflow_dispatch`. Pushing commits does not trigger a deployment.
+
+AWS resources have been removed to reduce costs. Re-provision the required infrastructure before running the workflow. Once this workflow is on the default branch, open **Actions → Deploy Backend to Fargate → Run workflow**, select the deployment branch, and start the run.
+
+The workflow then:
 
 1. Authenticate to AWS using repository secrets `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 2. Build the Docker image and push the `latest` tag to ECR.
 3. Force a new deployment of the configured ECS service.
 
-Before enabling the workflow, provision the ECR repository, ECS cluster/service and task definition, database, network access, task permissions, and runtime configuration. Check the workflow's `AWS_REGION`, `ECR_REPOSITORY`, `ECS_SERVICE`, and `ECS_CLUSTER` values for your environment. The API container listens on port **8080**.
+Before running the workflow, provision the ECR repository, ECS cluster/service and task definition, database, network access, task permissions, and runtime configuration. Check the workflow's `AWS_REGION`, `ECR_REPOSITORY`, `ECS_SERVICE`, and `ECS_CLUSTER` values for your environment. The API container listens on port **8080**.
 
 The workflow deploys application code; it does not create infrastructure, apply EF migrations, or run automated tests. Apply reviewed database migrations through your own release process.
 

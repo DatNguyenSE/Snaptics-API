@@ -1,10 +1,7 @@
 name: Deploy Backend to Fargate
 
 on:
-  push:
-    branches:
-      - main
-      - master
+  workflow_dispatch:
 
 env:
   AWS_REGION: ap-southeast-1
